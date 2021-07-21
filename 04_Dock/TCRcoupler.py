@@ -57,7 +57,7 @@ def prep_numbers(cores, flex, relax, docking, refine, pmhc, xml, bb, fast):
             run_info["cpu_pmhc"] = pmhc + 1  # Plus 1 for controller core
         else:
             run_info["cpu_pmhc"] = cores  # Use all cores
-        run_info["xml"] = xml # number of xml relax runs
+        run_info["xml"] = xml  # number of xml relax runs
         # Determine number of cpu cores for xml relax
         if cores > xml:
             run_info["cpu_xml"] = xml + 1
@@ -91,8 +91,125 @@ def prep_numbers(cores, flex, relax, docking, refine, pmhc, xml, bb, fast):
 # Input:
 #   pdb: location of pdb(s)
 #   single_file: boolean value of if a single pdb file or a directory of pdb files
-def run_rigid(pdb, single_file):
-    return "help"
+def run_rigid(pdb, single_file, run_info):
+    if single_file:
+        start_relax = time.time()
+        print("Running relax...")
+        make_dirs()
+        run_relax(pdb, run_info["relax"], run_info["cpu_relax"])
+        end_relax = (time.time() - start_relax) / 60.0
+        start_dock = time.time()
+        print("Relaxing Complete")
+        pdb_dock = check_score_relax()
+        remove_relax(pdb_dock)
+        print("Running dock...")
+        run_dock(pdb_dock + ".pdb", run_info["docking"], run_info["cpu_docking"])
+        end_dock = (time.time() - start_dock) / 60.0
+        start_refine = time.time()
+        print("Docking Complete")
+        pdb_refine = check_score_dock()  # In flexible section
+        remove_dock(pdb_refine)  # In flexible section
+        print("Running refine...")
+        run_refine(pdb_refine + ".pdb")  # In flexible section
+        end_refine = (time.time() - start_refine) / 60.0
+        remove_refine(check_score_refine())  # In flexible section
+        print("Refine Complete")
+        with open("time.txt", "w") as file:
+            file.write("Relax: " + str(end_relax) + " min : runs " + str(run_info["relax"]) + "\n")
+            file.write("Dock: " + str(end_dock) + " min : runs " + str(run_info["docking"]) + "\n")
+            file.write("Refine: " + str(end_refine) + " min : runs " + str(run_info["refine"]) + "\n")
+            file.write("Total: " + str(end_relax + end_dock + end_refine) + " min\n")
+    else:
+        print("Help")
+
+
+# Method: make_dirs()
+# Goal: Create the subfolders necessary for rigid docking
+def make_dirs():
+    os.mkdir(program_dir + "/output_files/")
+    os.mkdir(program_dir + "/output_files/dock/")
+    os.mkdir(program_dir + "/output_files/relax")
+    os.mkdir(program_dir + "/output_files/refine")
+
+
+################
+#    Relax     #
+################
+# Method: run_relax()
+# Goal: Runs regular relax
+def run_relax(pdb, runs, cpus):
+    dir_relax = rosetta_dir + "/main/source/bin/relax.mpi." + version
+    make_relax_file(pdb, runs, cpus)
+    process = subprocess.run(["mpirun", dir_relax, "@flag_input_relax"], stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+
+
+# Method: make_relax_file()
+# Goal: Generate relax flag file
+def make_relax_file(pdb, runs, cpus):
+    with open("flag_input_relax", "w") as relax_file:
+        relax_file.write("-in:file:s " + pdb + "\n\n")
+        relax_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
+        relax_file.write("-nstruct " + str(runs) + " \n\n")
+        relax_file.write("#-relax:constrain_relax_to_start_coords\n")
+        relax_file.write("#-relax:ramp_constraints false\n\n")
+        relax_file.write("-ex1\n-ex2\n\n")
+        relax_file.write("-use_input_sc\n-flip_HNQ\n-no_optH false\n\n")
+        relax_file.write("-out:path:all output_files/relax\n")
+
+
+# Method: remove_relax()
+# Goal: Remove redundant relax files to conserve space
+def remove_relax(best_pdb):
+    for pdb in os.listdir(os.getcwd() + "/output_files/relax/"):
+        if pdb.endswith(".pdb"):
+            if pdb != best_pdb + ".pdb":
+                os.remove(os.getcwd() + "/output_files/relax/" + pdb)
+
+
+# Method: check_score_relax()
+# Goal: Determine best relaxed structure to take to docking step
+# TODO: Update to new method.
+def check_score_relax():
+    score_dic = {}
+    best_pdb = ""
+    score = 100000.0
+    with open("output_files/relax/score.sc", "r") as score_read:
+        for line in score_read:
+            if not line.__contains__("SEQUENCE") and not line.__contains__("total_score"):
+                score_dic[line.split()[-1]] = line.split()
+    for pdb in score_dic:
+        if float(score_dic[pdb][1]) < score:
+            best_pdb = score_dic[pdb][-1]
+            score = float(score_dic[pdb][1])
+    return best_pdb
+
+
+################
+#     Dock     #
+################
+# Method: run_dock()
+# Goal: Runs rigid dock
+def run_dock(pdb, runs, cpus):
+    dir_dock = rosetta_dir + "/main/source/bin/docking_protocol.mpi." + version
+    make_docking_file(pdb, runs, cpus)
+    process = subprocess.run(["mpirun", dir_dock, "@flag_local_docking"], stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+
+
+# Method: mack_docking_file()
+# Goal: Generate flag file for rigid docking
+def make_docking_file(pdb, runs, cpus):
+    with open("flag_local_docking", "w") as dock_file:
+        dock_file.write("-in:file:s output_files/relax/" + pdb + "\n")
+        dock_file.write("-unboundrot output_files/relax/" + pdb + "\n\n")
+        dock_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
+        dock_file.write("-nstruct " + str(runs) + " \n\n")
+        dock_file.write("-partners DE_AC\n")  # TODO: Update this once adding in chain parameters
+        dock_file.write("-dock_pert 3 8\n\n")
+        dock_file.write("-ex1\n-ex2aro\n\n")
+        dock_file.write("-out:path:all output_files/dock\n")
+        dock_file.write("-out:suffix _local_dock\n")
 
 
 ######################################
@@ -104,31 +221,31 @@ def run_rigid(pdb, single_file):
 #   pdb: location of pdb(s)
 #   single_file: boolean value of if a single pdb file or a directory of pdb files
 # TODO: Provide options to not remove files, remove files from relax, add split tcr from multidock
-def run_flexible(pdb, single_file):
+def run_flexible(pdb, single_file, run_info):
     if single_file:
         print("Starting!")
         print("Running relax...")
         start = time.time()
         flex_make_dirs()
-        run_pmhc_relax("pmhc.pdb")
-        run_xml_relax("tcr.pdb")
-        run_bb_relax("tcr.pdb")
-        run_fast_relax("tcr.pdb")
+        run_pmhc_relax("pmhc.pdb", run_info["pmhc"], run_info["cpu_pmhc"])
+        run_xml_relax("tcr.pdb", run_info["xml"], run_info["cpu_xml"])
+        run_bb_relax("tcr.pdb", run_info["bb"], run_info["cpu_bb"])
+        run_fast_relax("tcr.pdb", run_info["fast"], run_info["cpu_fast"])
         print("Preparing prepack...")
         run_prepack(pdb)
         print("Running docking...")
-        run_flex_dock(pdb)
+        run_flex_dock(pdb, run_info["docking"], run_info["cpu_docking"])
         remove_dock(check_score_dock())  # TODO: provide option to not remove
         print("Running refine...")
         pdb_refine = check_score_dock()
-        run_refine(pdb_refine + ".pdb")
+        run_refine(pdb_refine + ".pdb", run_info["refine"], run_info["cpu_refine"])
         best_refine = check_score_refine()
         remove_refine(best_refine)  # TODO: provide option to not remove
         print(best_refine)
         print("DONE!")
         print(f"Time: {(time.time() - start)/60:.0f} mins")
     else:
-        flex_multi_make_dirs(pdb)
+        print("Help!")
 
 
 # Method: flex_make_dirs()
@@ -149,9 +266,9 @@ def flex_make_dirs():
 ################
 # Method: run_pmhc_relax()
 # Goal: Relax just the pmhc portion of TCR
-def run_pmhc_relax(pmhc):
+def run_pmhc_relax(pmhc, runs, cpus):
     dir_relax = rosetta_dir + "/main/source/bin/relax.mpi." + version
-    make_pmhc_relax_file(pmhc)
+    make_pmhc_relax_file(pmhc, runs, cpus)
     subprocess.run(["mpirun", dir_relax, "@flag_pmhc_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     check_score_pmhc_relax()
 
@@ -176,11 +293,11 @@ def check_score_pmhc_relax():
 
 # Method: make_pmhc_relax_file()
 # Goal: make command file for pmhc relax
-def make_pmhc_relax_file(pmhc):
+def make_pmhc_relax_file(pmhc, runs, cpus):
     with open("flag_pmhc_relax", "w") as relax_file:
         relax_file.write("-in:file:s " + pmhc + "\n\n")
-        relax_file.write("#SBATCH --ntasks=" + str(cpu_pmhc_relax) + "\n")
-        relax_file.write("-nstruct " + str(relax_pmhc_runs) + " \n\n")
+        relax_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
+        relax_file.write("-nstruct " + str(runs) + " \n\n")
         relax_file.write("#-relax:constrain_relax_to_start_coords\n")
         relax_file.write("#-relax:ramp_constraints false\n\n")
         relax_file.write("-ex1\n-ex2\n\n")
@@ -193,10 +310,10 @@ def make_pmhc_relax_file(pmhc):
 ################
 # Method: run_xml_relax()
 # Goal: Runs XML relax for tcr
-def run_xml_relax(tcr):
+def run_xml_relax(tcr, runs, cpus):
     dir_script = rosetta_dir + "/main/source/bin/rosetta_scripts.mpi." + version
     make_xml_file()
-    make_xml_flag(tcr)
+    make_xml_flag(tcr, runs, cpus)
     subprocess.run(["mpirun", dir_script, "@flag_xml_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
@@ -220,11 +337,11 @@ def make_xml_file():
 
 # Method: make_xml_flag()
 # Goal: Creates the flag file for the normal xml relax
-def make_xml_flag(tcr):
+def make_xml_flag(tcr, runs, cpus):
     with open("flag_xml_relax", "w") as f:
         f.write("-in:file:s " + str(tcr) + "\n\n")
-        f.write("#SBATCH --ntasks=" + str(cpu_xml_relax) + "\n")
-        f.write("-nstruct " + str(relax_xml_runs) + "\n\n")
+        f.write("#SBATCH --ntasks=" + str(cpus) + "\n")
+        f.write("-nstruct " + str(runs) + "\n\n")
         f.write("-parser:protocol nma.xml\n\n")
         f.write("-out:path:all input_files/tcr_ensembles\n")
         f.write("-out:suffix _xml\n")
@@ -235,19 +352,19 @@ def make_xml_flag(tcr):
 ################
 # Method: run_bb_relax()
 # Goal: Runs bb relax for tcr
-def run_bb_relax(tcr):
+def run_bb_relax(tcr, runs, cpus):
     dir_relax = rosetta_dir + "/main/source/bin/relax.mpi." + version
-    make_bb_relax_file(tcr)
+    make_bb_relax_file(tcr, runs, cpus)
     subprocess.run(["mpirun", dir_relax, "@flag_bb_tcr_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 # Method: make_bb_relax_file()
 # Goal: Creates the flag file for the bb rub
-def make_bb_relax_file(tcr):
+def make_bb_relax_file(tcr, runs, cpus):
     with open("flag_bb_tcr_relax", "w") as relax_file:
         relax_file.write("-in:file:s " + str(tcr) + "\n\n")
-        relax_file.write("#SBATCH --ntasks=" + str(cpu_bb_relax) + "\n")
-        relax_file.write("-nstruct " + str(relax_bb_runs) + " \n\n")
+        relax_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
+        relax_file.write("-nstruct " + str(runs) + " \n\n")
         relax_file.write("-backrub:ntrials 20000\n")
         relax_file.write("-backrub:mc_kt 0.6\n\n")  # TODO: Is this supposed to be mc_kt?
         relax_file.write("-out:path:all input_files/tcr_ensembles/\n")
@@ -259,19 +376,19 @@ def make_bb_relax_file(tcr):
 ################
 # Method: run_fast_relax()
 # Goal: Runs fast relax for tcr
-def run_fast_relax(tcr):
+def run_fast_relax(tcr, runs, cpus):
     dir_relax = rosetta_dir + "/main/source/bin/relax.mpi." + version
-    make_fast_relax_file(tcr)
+    make_fast_relax_file(tcr, runs, cpus)
     subprocess.run(["mpirun", dir_relax, "@flag_fast_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 # Method: make_fast_relax_file
 # Goal: Creates flag file for fast relax of tcr
-def make_fast_relax_file(tcr):
+def make_fast_relax_file(tcr, runs, cpus):
     with open("flag_fast_relax", "w") as relax_file:
         relax_file.write("-in:file:s " + str(tcr) + "\n\n")
-        relax_file.write("#SBATCH --ntasks=" + str(cpu_fast_relax) + "\n")
-        relax_file.write("-nstruct " + str(relax_fast_runs) + " \n\n")
+        relax_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
+        relax_file.write("-nstruct " + str(runs) + " \n\n")
         relax_file.write("-relax:thorough\n\n")
         relax_file.write("-out:path:all input_files/tcr_ensembles/\n")
         relax_file.write("-out:suffix _fast\n")
@@ -324,20 +441,20 @@ def make_prepack_file(pdb):
 ################
 # Method: run_flex_dock()
 # Goal: Run flexible docking
-def run_flex_dock(pdb):
+def run_flex_dock(pdb, runs, cpus):
     dir_dock = rosetta_dir + "/main/source/bin/docking_protocol.mpi." + version
-    make_docking_file(pdb)
+    make_docking_file(pdb, runs, cpus)
     subprocess.run(["mpirun", dir_dock, "@flag_ensemble_docking"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 # Method: make_docking_file()
 # Goal: Generate flag file for ensemble docking
-def make_docking_file(pdb):
+def make_docking_file(pdb, runs, cpus):
     with open("flag_ensemble_docking", "w") as dock_file:
         dock_file.write("-in:file:s output_files/prepack/" + pdb[:-4] + "_prepack_0001.pdb" + "\n")
         dock_file.write("-unboundrot " + pdb + "\n\n")
-        dock_file.write("#SBATCH --ntasks=" + str(cpu_dock) + "\n")
-        dock_file.write("-nstruct " + str(docking_runs) + " \n\n")
+        dock_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
+        dock_file.write("-nstruct " + str(runs) + " \n\n")
         dock_file.write("-partners AC_DE\n")
         dock_file.write("-dock_pert 3 8\n\n")
         dock_file.write("-spin\n-detect_disulf true\n-rebuild_disulf true\n\n")
@@ -356,24 +473,42 @@ def remove_dock(best_pdb):
                 os.remove(os.getcwd() + "/output_files/dock/" + pdb)
 
 
+# Method: check_score_dock()
+# Goal: Returns the best pdb from the score log form docking
+# TODO: possibly update with new method
+def check_score_dock():
+    score_dic = {}
+    best_pdb = ""
+    score = 100000.0
+    with open("output_files/dock/score_ensemble_dock.sc", "r") as score_read:
+        for line in score_read:
+            if not line.__contains__("SEQUENCE") and not line.__contains__("total_score"):
+                score_dic[line.split()[-1]] = line.split()
+    for pdb in score_dic:
+        if float(score_dic[pdb][5]) < score:
+            best_pdb = score_dic[pdb][-1]
+            score = float(score_dic[pdb][5])
+    return best_pdb
+
+
 ################
 #    Refine    #
 ################
 # Method: run_refine()
 # Goal: Run refinement protocol
-def run_refine(pdb):
+def run_refine(pdb, runs, cpus):
     dir_dock = rosetta_dir + "/main/source/bin/docking_protocol.mpi." + version
-    make_refine_file(pdb)
+    make_refine_file(pdb, runs, cpus)
     subprocess.run(["mpirun", dir_dock, "@flag_local_refine"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 # Method: make_refine_file()
 # Goal: Generate flag file for refinement
-def make_refine_file(pdb):
+def make_refine_file(pdb, runs, cpus):
     with open("flag_local_refine", "w") as refine_file:
         refine_file.write("-in:file:s output_files/dock/" + pdb + "\n")
-        refine_file.write("#SBATCH --ntasks=" + str(refine_runs) + "\n")
-        refine_file.write("-nstruct " + str(refine_runs) + " \n\n")
+        refine_file.write("#SBATCH --ntasks=" + str(runs) + "\n")
+        refine_file.write("-nstruct " + str(cpus) + " \n\n")
         refine_file.write("-docking_local_refine\n")
         refine_file.write("-use_input_sc\n\n")
         refine_file.write("-ex1\n-ex2aro\n\n")
@@ -399,20 +534,6 @@ def remove_refine(refine_best_pdb):
         if pdb.endswith(".pdb"):
             if pdb != refine_best_pdb + ".pdb":
                 os.remove(os.getcwd() + "/output_files/refine/" + pdb)
-
-
-# TODO: make this capable of running all from a single python file (not counting pdb_tools)
-def flex_multi_make_dirs(pdb_folder):
-    global program_dir
-    os.mkdir(program_dir + "/Flex_bb_Runs/" + pdb + "/")  # Make pdb run file
-    # Copy over autodock
-    auto = "flexauto__rosetta.py"
-    pdb_tools = "PDB_Tools_V3.py"
-    copyfile(program_dir + "/" + auto, program_dir + "/Flex_bb_Runs/" + pdb + "/" + auto)
-    # Copy over pdb file
-    copyfile(pdb_dir + "/" + pdb, program_dir + "/Flex_bb_Runs/" + pdb + "/" + pdb)
-    # Copy over PDB tools
-    copyfile(program_dir + "/" + pdb_tools, program_dir + "/Flex_bb_Runs/" + pdb + "/" + pdb_tools)
 
 
 ####################

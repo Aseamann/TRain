@@ -121,6 +121,7 @@ def remove_refine(best_pdb):
             if pdb != best_pdb + ".pdb":
                 os.remove(os.getcwd() + "/output_files/refine/" + pdb)
 
+
 def check_score_refine():
     score_dic = {}
     best_pdb = ""

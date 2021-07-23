@@ -38,7 +38,7 @@ def prep_dirs(pdb):
     global pdb_dir
     global program_dir
     os.mkdir(program_dir + "/Flex_Runs/" + pdb + "/")  # Make pdb run file
-     Copy over autodock
+    # Copy over autodock
     auto = "flexauto_rosetta.py"
     pdb_tools = "PDB_Tools_V3.py"
     copyfile(program_dir + "/" + auto, program_dir + "/Flex_Runs/" + pdb + "/" + auto)

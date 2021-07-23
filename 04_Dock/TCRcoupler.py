@@ -110,7 +110,7 @@ def run_rigid(pdb, single_file, run_info):
         pdb_refine = check_score_dock()  # In flexible section
         remove_dock(pdb_refine)  # In flexible section
         print("Running refine...")
-        run_refine(pdb_refine + ".pdb")  # In flexible section
+        run_refine(pdb_refine + ".pdb", run_info["refine"], run_info["cpu_refine"])  # In flexible section
         end_refine = (time.time() - start_refine) / 60.0
         remove_refine(check_score_refine())  # In flexible section
         print("Refine Complete")
@@ -443,13 +443,13 @@ def make_prepack_file(pdb):
 # Goal: Run flexible docking
 def run_flex_dock(pdb, runs, cpus):
     dir_dock = rosetta_dir + "/main/source/bin/docking_protocol.mpi." + version
-    make_docking_file(pdb, runs, cpus)
+    make_flex_docking_file(pdb, runs, cpus)
     subprocess.run(["mpirun", dir_dock, "@flag_ensemble_docking"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 # Method: make_docking_file()
 # Goal: Generate flag file for ensemble docking
-def make_docking_file(pdb, runs, cpus):
+def make_flex_docking_file(pdb, runs, cpus):
     with open("flag_ensemble_docking", "w") as dock_file:
         dock_file.write("-in:file:s output_files/prepack/" + pdb[:-4] + "_prepack_0001.pdb" + "\n")
         dock_file.write("-unboundrot " + pdb + "\n\n")
@@ -480,7 +480,10 @@ def check_score_dock():
     score_dic = {}
     best_pdb = ""
     score = 100000.0
-    with open("output_files/dock/score_ensemble_dock.sc", "r") as score_read:
+    for file in os.listdir(os.getcwd() + "/output_files/dock"):
+        if file.endswith(".sc"):
+            score_file = os.getcwd() + "/output_files/dock/" + file
+    with open(score_file, "r") as score_read:
         for line in score_read:
             if not line.__contains__("SEQUENCE") and not line.__contains__("total_score"):
                 score_dic[line.split()[-1]] = line.split()
@@ -520,7 +523,9 @@ def make_refine_file(pdb, runs, cpus):
 # Method: check_score_refine()
 # Goal: Check for best scoring file with RE
 def check_score_refine():
-    score_file = "output_files/refine/score_local_refine.fasc"
+    for file in os.listdir(os.getcwd() + "/output_files/refine"):
+        if file.endswith(".fasc"):
+            score_file = "output_files/refine/" + file
     express = "tail -n +3 " + score_file + " | tr -s ' ' | sort -u -k6 -r | head -1"
     temp_best = subprocess.run(express, shell=True, stdout=subprocess.PIPE)
     best_pdb = temp_best.stdout.decode('utf-8').split(' ')[-1][:-1]  # Removing new line character
@@ -556,7 +561,7 @@ def parse_args():
                         default=os.cpu_count(), type=int)
     parser.add_argument("-a", "--relax", help="(Rigid) Number of relax runs performed", default=100,
                         type=int)
-    parser.add_argument("-d", "--docking", help="Number of docking runs performed", default=10000,
+    parser.add_argument("-d", "--docking", help="(Both) Number of docking runs performed", default=10000,
                         type=int)
     parser.add_argument("-p", "--pmhc", help="(Flex) Number of pmhc relax runs", default=100,
                         type=int)
@@ -566,7 +571,7 @@ def parse_args():
                         type=int)
     parser.add_argument("-s", "--fast", help="(Flex) Number of fast relax runs for TCR", default=30,
                         type=int)
-    parser.add_argument("-e", "--refine", help="Number of refinement runs done, post dock", default=100,
+    parser.add_argument("-e", "--refine", help="(Both) Number of refinement runs done, post dock", default=100,
                         type=int)
     return parser.parse_args()
 
@@ -589,9 +594,6 @@ def main():
             version = "macosclangrelease"
         elif args.linux:
             version = "linuxgccrelease"
-        # Initialize location of rosetta install
-        global rosetta_dir
-        rosetta_dir = args.rosetta
         # Initialize flexible or rigid docking & determine if a batch of pdbs or a single file
         run_info = prep_numbers(args.cores, args.flexible, args.relax, args.docking, args.refine, args.pmhc, args.xml,
                                 args.bb, args.fast)

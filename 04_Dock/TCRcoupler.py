@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
 # Version: 1.0
-# Last Updated: July 19th, 2021
+# Last Updated: July 23th, 2021
 
 import argparse
 import subprocess
@@ -542,6 +542,64 @@ def remove_refine(refine_best_pdb):
 
 
 ####################
+#      Multi       #
+####################
+# Method: run_multi()
+# Goal: Manage runs with submitted directory of pdb files
+def run_multi(args):
+    main_dir = os.getcwd()
+    start = time.time()
+    os.mkdir("Runs")
+    for pdb in sorted(os.listdir(args.pdb)):
+        prep_dirs(main_dir, args.pdb, pdb)
+        os.chdir(main_dir + "/Runs/" + pdb.split(".")[0] + "/")
+        print(pdb)
+        # TODO: Handle both of these in the actual flexible docking sections
+        split_tcr = ["python3", "PDB_Tools_V3.py", pdb, "--tcr_split"]
+        split_pmhc = ["python3", "PDB_Tools_V3.py", pdb, "--pmhc_split"]
+        subprocess.run(split_tcr)
+        subprocess.run(split_pmhc)
+        # Run Flex auto
+        par_run = choose_par(args, ["python3", "TCRcoupler.py", pdb])
+        print(par_run)
+        subprocess.run(par_run)
+        os.chdir(main_dir)
+        current_time = time.time()
+        print(f"{pdb}: {(current_time - start) / 3600:.1f} hrs")
+    print(f"Total: {(time.time() - start) / 3600:.1f} hrs")
+
+
+# Method: choose_par()
+# Goal: Provide list of executable parameters for run_multi
+def choose_par(args, run_list):
+    if args.flexible:
+        run_list.append("-f")
+    else:
+        run_list.append("-r")
+    if args.mac:
+        run_list.append("-m")
+    else:
+        run_list.append("-l")
+    run_list.extend(["-c", str(args.cores), "-a", str(args.relax), "-d", str(args.docking), "-p", str(args.pmhc),
+                     "-x", str(args.xml), "-b", str(args.bb), "-s", str(args.fast), "-e", str(args.refine)])
+    return run_list
+
+
+# Method: prep_dirs()
+# Goal: Prepare individual folders for each pdb run
+def prep_dirs(main_dir, folder, pdb):
+    new_folder = main_dir + "/Runs/" + pdb.split(".")[0] + "/"
+    os.mkdir(new_folder)  # Make pdb run file
+    coupler = "TCRcoupler.py"
+    pdb_tools = "PDB_Tools_V3.py"
+    copyfile(main_dir + "/" + coupler, new_folder + coupler)
+    # Copy over pdb file
+    copyfile(main_dir + "/" + folder + "/" + pdb, new_folder + pdb)
+    # Copy over PDB tools
+    copyfile(main_dir + "/" + pdb_tools, new_folder + pdb_tools)
+
+
+####################
 #     Controls     #
 ####################
 def parse_args():
@@ -588,19 +646,22 @@ def main():
                         line = line.split('"')[0] + '"' + args.initialize + '"'
                     f1.write(line + "\n")
     else:
-        # Initialize version of Linux or Mac release
-        global version
-        if args.mac:
-            version = "macosclangrelease"
-        elif args.linux:
-            version = "linuxgccrelease"
-        # Initialize flexible or rigid docking & determine if a batch of pdbs or a single file
-        run_info = prep_numbers(args.cores, args.flexible, args.relax, args.docking, args.refine, args.pmhc, args.xml,
-                                args.bb, args.fast)
-        if args.flexible:
-            run_flexible(args.pdb, os.path.isfile(args.pdb), run_info)
-        elif args.rigid:
-            run_rigid(args.pdb, os.path.isfile(args.pdb), run_info)
+        if os.path.isfile(args.pdb):
+            # Initialize version of Linux or Mac release
+            global version
+            if args.mac:
+                version = "macosclangrelease"
+            elif args.linux:
+                version = "linuxgccrelease"
+            # Initialize flexible or rigid docking & determine if a batch of pdbs or a single file
+            run_info = prep_numbers(args.cores, args.flexible, args.relax, args.docking, args.refine, args.pmhc,
+                                    args.xml, args.bb, args.fast)
+            if args.flexible:
+                run_flexible(args.pdb, os.path.isfile(args.pdb), run_info)
+            elif args.rigid:
+                run_rigid(args.pdb, os.path.isfile(args.pdb), run_info)
+        else:
+            run_multi(args)
 
 
 if __name__ == '__main__':

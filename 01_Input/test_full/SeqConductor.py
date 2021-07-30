@@ -305,6 +305,9 @@ def make_rep_tcrmod_file(alpha_file, beta_file, tcr_dic):
                     file_b.write('\n')
 
 
+####################
+#     Controls     #
+####################
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("single_cell_table", help="Xlsx or Csv of single cell t-cell data", type=str)

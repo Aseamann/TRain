@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
 # Version: 0.1
-# Last Updated: Aug 2nd, 2021
+# Last Updated: July 30th, 2021
 import argparse
 from PDB_Tools_V3 import PdbTools3
 import os

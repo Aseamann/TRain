@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
-# Version: 0.1
-# Last Updated: Aug 2nd, 2021
+# Version: 0.2
+# Last Updated: Aug 4th, 2021
 import argparse
 from PDB_Tools_V3 import PdbTools3
 import os
@@ -16,7 +16,7 @@ tool = PdbTools3()  # Initialize PDB tools
 
 
 #################
-# Methods
+#    Methods    #
 #################
 # Method: run_chimera()
 # Goal: Runs chimera commands based on submitted cmd file and list of pdbs to open

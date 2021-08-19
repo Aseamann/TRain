@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
-# Version: 1.0
-# Last Updated: July 23th, 2021
+# Version: 1.01
+# Last Updated: August 16th, 2021
 
 import argparse
 import subprocess
@@ -16,7 +16,7 @@ from shutil import copyfile
 
 version = "linuxgccrelease"
 program_dir = os.getcwd()
-rosetta_dir = "/mnt/fast/Programs/rosetta_src_2020.08.61146_bundle"
+rosetta_dir = "/mnt/fast/Programs/rosetta_src_2020.08.61146_bundle/"
 
 
 ####################
@@ -91,7 +91,7 @@ def prep_numbers(cores, flex, relax, docking, refine, pmhc, xml, bb, fast):
 # Input:
 #   pdb: location of pdb(s)
 #   single_file: boolean value of if a single pdb file or a directory of pdb files
-def run_rigid(pdb, single_file, run_info):
+def run_rigid(pdb, single_file, run_info, native):
     if single_file:
         start_relax = time.time()
         print("Running relax...")
@@ -103,7 +103,7 @@ def run_rigid(pdb, single_file, run_info):
         pdb_dock = check_score_relax()
         remove_relax(pdb_dock)
         print("Running dock...")
-        run_dock(pdb_dock + ".pdb", run_info["docking"], run_info["cpu_docking"])
+        run_dock(pdb_dock + ".pdb", run_info["docking"], run_info["cpu_docking"], native)
         end_dock = (time.time() - start_dock) / 60.0
         start_refine = time.time()
         print("Docking Complete")
@@ -190,18 +190,20 @@ def check_score_relax():
 ################
 # Method: run_dock()
 # Goal: Runs rigid dock
-def run_dock(pdb, runs, cpus):
+def run_dock(pdb, runs, cpus, native):
     dir_dock = rosetta_dir + "/main/source/bin/docking_protocol.mpi." + version
-    make_docking_file(pdb, runs, cpus)
+    make_docking_file(pdb, runs, cpus, native)
     process = subprocess.run(["mpirun", dir_dock, "@flag_local_docking"], stdout=subprocess.DEVNULL,
                              stderr=subprocess.DEVNULL)
 
 
 # Method: mack_docking_file()
 # Goal: Generate flag file for rigid docking
-def make_docking_file(pdb, runs, cpus):
+def make_docking_file(pdb, runs, cpus, native):
     with open("flag_local_docking", "w") as dock_file:
         dock_file.write("-in:file:s output_files/relax/" + pdb + "\n")
+        if native != "...":
+            dock_file.write("-in:file:native " + "/".join(program_dir[1:].split("/")[:-2]) + native + pdb[:4] + ".pdb" + "\n")
         dock_file.write("-unboundrot output_files/relax/" + pdb + "\n\n")
         dock_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
         dock_file.write("-nstruct " + str(runs) + " \n\n")
@@ -221,7 +223,7 @@ def make_docking_file(pdb, runs, cpus):
 #   pdb: location of pdb(s)
 #   single_file: boolean value of if a single pdb file or a directory of pdb files
 # TODO: Provide options to not remove files, remove files from relax, add split tcr from multidock
-def run_flexible(pdb, single_file, run_info):
+def run_flexible(pdb, single_file, run_info, native):
     if single_file:
         print("Starting!")
         print("Running relax...")
@@ -234,7 +236,7 @@ def run_flexible(pdb, single_file, run_info):
         print("Preparing prepack...")
         run_prepack(pdb)
         print("Running docking...")
-        run_flex_dock(pdb, run_info["docking"], run_info["cpu_docking"])
+        run_flex_dock(pdb, run_info["docking"], run_info["cpu_docking"], native)
         remove_dock(check_score_dock())  # TODO: provide option to not remove
         print("Running refine...")
         pdb_refine = check_score_dock()
@@ -403,7 +405,8 @@ def run_prepack(pdb):
     dir_relax = rosetta_dir + "/main/source/bin/docking_prepack_protocol.mpi." + version
     make_ensemble_files()
     make_prepack_file(pdb)
-    subprocess.run(["mpirun", dir_relax, "@flag_ensemble_prepack"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["mpirun", dir_relax, "@flag_ensemble_prepack"], stdout=subprocess.DEVNULL,
+                   stderr=subprocess.DEVNULL)
 
 
 # Method: make_ensemble_files()
@@ -441,17 +444,19 @@ def make_prepack_file(pdb):
 ################
 # Method: run_flex_dock()
 # Goal: Run flexible docking
-def run_flex_dock(pdb, runs, cpus):
+def run_flex_dock(pdb, runs, cpus, native):
     dir_dock = rosetta_dir + "/main/source/bin/docking_protocol.mpi." + version
-    make_flex_docking_file(pdb, runs, cpus)
+    make_flex_docking_file(pdb, runs, cpus, native)
     subprocess.run(["mpirun", dir_dock, "@flag_ensemble_docking"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 # Method: make_docking_file()
 # Goal: Generate flag file for ensemble docking
-def make_flex_docking_file(pdb, runs, cpus):
+def make_flex_docking_file(pdb, runs, cpus, native):
     with open("flag_ensemble_docking", "w") as dock_file:
         dock_file.write("-in:file:s output_files/prepack/" + pdb[:-4] + "_prepack_0001.pdb" + "\n")
+        if native != "...":
+            dock_file.write("-in:file:native " + "/".join(program_dir[1:].split("/")[:-2]) + native + pdb[:4] + ".pdb" + "\n")
         dock_file.write("-unboundrot " + pdb + "\n\n")
         dock_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
         dock_file.write("-nstruct " + str(runs) + " \n\n")
@@ -581,12 +586,13 @@ def choose_par(args, run_list):
     else:
         run_list.append("-l")
     run_list.extend(["-c", str(args.cores), "-a", str(args.relax), "-d", str(args.docking), "-p", str(args.pmhc),
-                     "-x", str(args.xml), "-b", str(args.bb), "-s", str(args.fast), "-e", str(args.refine)])
+                     "-x", str(args.xml), "-b", str(args.bb), "-s", str(args.fast), "-e", str(args.refine), "-n",
+                     str(args.native)])
     return run_list
 
 
 # Method: prep_dirs()
-# Goal: Prepare individual folders for each pdb run
+# Goal: Prepare individual folders for each pdb un
 def prep_dirs(main_dir, folder, pdb):
     new_folder = main_dir + "/Runs/" + pdb.split(".")[0] + "/"
     os.mkdir(new_folder)  # Make pdb run file
@@ -631,6 +637,9 @@ def parse_args():
                         type=int)
     parser.add_argument("-e", "--refine", help="(Both) Number of refinement runs done, post dock", default=100,
                         type=int)
+    parser.add_argument("-n", "--native", help="Native structure's folder to run optional comparison to crystal" \
+                                               "structure, ensure '/', pdbs have to be in folder", type=str,
+                                               default="...")
     return parser.parse_args()
 
 
@@ -657,14 +666,15 @@ def main():
             run_info = prep_numbers(args.cores, args.flexible, args.relax, args.docking, args.refine, args.pmhc,
                                     args.xml, args.bb, args.fast)
             if args.flexible:
-                run_flexible(args.pdb, os.path.isfile(args.pdb), run_info)
+                run_flexible(args.pdb, os.path.isfile(args.pdb), run_info, args.native)
             elif args.rigid:
-                run_rigid(args.pdb, os.path.isfile(args.pdb), run_info)
+                run_rigid(args.pdb, os.path.isfile(args.pdb), run_info, args.native)
         else:
             run_multi(args)
 
 
 if __name__ == '__main__':
     main()
+
 
 

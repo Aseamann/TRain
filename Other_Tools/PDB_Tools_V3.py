@@ -2,6 +2,7 @@
 # Author: Austin Seamann & Dario Ghersi
 # Version: 1.00
 # Last Updated: August 4th, 2021
+
 from math import sqrt
 from Bio import pairwise2
 import warnings
@@ -16,10 +17,6 @@ class PdbTools3:
     # initialize PdbTools
     def __init__(self, file):
         self.file_name = file
-        self.test_list = {}
-
-    def __init__(self):
-        self.file_name = ""
         self.test_list = {}
 
     # method for changing PDB file
@@ -261,26 +258,6 @@ class PdbTools3:
             tmp_mhc.append([float(score_mhc), chain])
         mhc = sorted(tmp_mhc)
         return mhc[-1][1]
-
-    # Return the Beta-2 Microglobulin - based on alignment to reference 1ao7 B2M
-    def get_b2m_chain(self):
-        matrix = matlist.blosum62
-        # Hard coded b2m chain
-        b2m_chain='MIQRTPKIQVYSRHPAENGKSNFLNCYVSGFHPSDIEVDLLKNGERIEKVEHSDLSFSKDWSFYLLYCTEFTPTEKDEYACRVNHVTLSQPCIVKWDRDM'
-        chains = self.get_chains()
-        tmp_b2m = []
-        for chain in sorted(chains):
-            score_b2m = pairwise2.align.globaldx(
-                self.get_amino_acid_on_chain(chain), b2m_chain, matrix,
-                score_only=True, penalize_end_gaps=(False, False))
-            tmp_b2m.append([float(score_b2m), chain])
-        b2m = sorted(tmp_b2m, reverse=True)
-        high_score = b2m[0][0]  # highest align score
-        b2ms = []
-        for each in b2m:  # Tries to grab the first mhc in file
-            if each[0] / high_score >= 0.98:  # similarity is above 98%
-                b2ms.append(each[1])
-        return sorted(b2ms)[0]
 
     def renumber_docking(self, rename="****"):
         if rename != '****':  # Renames if given input, if not writes over file
@@ -714,16 +691,6 @@ class PdbTools3:
                         w.write(line)
                 else:
                     w.write(line)
-
-    # Remove chain provided based on ID
-    def remove_chain(self, chain_id):
-        with open(self.file_name, 'r') as r:
-            data = r.readlines()
-        with open(self.file_name, 'w+') as w:
-            for line in data:
-                if line[0:6] == 'ATOM  ' or line[0:6] == 'TER   ':
-                    if line[21] != chain_id.upper():
-                        w.write(line)
 
 
 def parse_args():

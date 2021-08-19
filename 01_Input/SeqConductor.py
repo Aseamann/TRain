@@ -63,7 +63,7 @@ def get_tcr_info(file, sheet, positions):
     if file.endswith(".xlsx"):  # Open if xlsx
         if sheet == "0":  # If no sheet name was provided, set default to primary sheet
             sheet = 0
-        df = pandas.read_excel(file, sheet_name=sheet)
+        df = pandas.read_excel(file, sheet_name=sheet, engine='openpyxl')
     elif file.endswith(".csv"):  # Open if csv
         df = pandas.read_csv(file)
     for key, value in df.iterrows():  # Reading over table with pandas
@@ -350,3 +350,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    

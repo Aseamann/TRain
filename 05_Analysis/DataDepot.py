@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
-# Version: 0.1
-# Last Updated: Aug 15th, 2021
+# Version: 0.02
+# Last Updated: Aug 23rd, 2021
 import argparse
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -53,26 +53,43 @@ def strip_plot_ab(df_0):
     plt.show()
 
 
+def box_plot_isc(df_0):
+    score_df = pd.read_csv(df_0, index_col=0, sep="\t").sort_values('TCR')
+    m1_df = score_df.query("TCR_Ant  == 'M1'")
+    print(m1_df)
+    m1s = {}
+    for tcr in m1_df["TCR"].unique():  # for each with M1 TC
+        m1s[tcr] = m1_df.query("TCR == '" + tcr + "'")
+    for each in m1s:
+        current = m1s[each].query("pMHC == '" + each + "'")  # pulls current TCR from table
+        m1s[each] = m1s[each].query("pMHC != '" + each + "'")
+        ax = sns.boxplot(y=m1s[each]["I_sc"], x=m1s[each]["TCR"])  # Produces box plot
+        plt.plot([current["I_sc"], current["I_sc"]], linewidth=2, color="red")
+        plt.show()
+
+
 ####################
 #     Controls     #
 ####################
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--density", help="TSV containing: pdb_name,TCR,pMHC,Total_Score,Alpha,Beta", type=str)
+    parser.add_argument("-d", "--data", help="TSV containing: pdb_name,TCR,pMHC,Total_Score,Alpha,Beta", type=str)
     parser.add_argument("-s", "--strip", help="TSV containing: pdb_name,TCR,pMHC,Total_Score,Alpha,Beta")
-    parser.add_argument("-z", "--strip2", help="TSV containing: pdb_name,TCR,pMHC,Total_Score,Alpha,Beta" \
+    parser.add_argument("-z", "--strip2", help="TSV containing: pdb_name,TCR,pMHC,Total_Score,Alpha,Beta"\
                         " | produces strip plot based on alpha/beta score")
+    parser.add_argument("-b", "--box_tcr", help="Box plot of TCR in comparison of native to all others.",
+                        default=False, action="store_true")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    if args.density:
-        density(args.density)
     if args.strip:
         strip_plot_isc(args.strip)
     if args.strip2:
         strip_plot_ab(args.strip2)
+    if args.box_tcr:
+        box_plot_isc(args.data)
 
 
 if __name__ == '__main__':

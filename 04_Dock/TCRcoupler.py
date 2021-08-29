@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
-# Version: 1.01
-# Last Updated: August 16th, 2021
+# Version: 1.02
+# Last Updated: August 29th, 2021
 
 import argparse
 import subprocess
@@ -110,7 +110,7 @@ def run_rigid(pdb, single_file, run_info, native):
         pdb_refine = check_score_dock()  # In flexible section
         remove_dock(pdb_refine)  # In flexible section
         print("Running refine...")
-        run_refine(pdb_refine + ".pdb", run_info["refine"], run_info["cpu_refine"])  # In flexible section
+        run_refine(pdb_refine + ".pdb", run_info["refine"], run_info["cpu_refine"], native)  # In flexible section
         end_refine = (time.time() - start_refine) / 60.0
         remove_refine(check_score_refine())  # In flexible section
         print("Refine Complete")
@@ -203,7 +203,7 @@ def make_docking_file(pdb, runs, cpus, native):
     with open("flag_local_docking", "w") as dock_file:
         dock_file.write("-in:file:s output_files/relax/" + pdb + "\n")
         if native != "...":
-            dock_file.write("-in:file:native " + "/".join(program_dir[1:].split("/")[:-2]) + native + pdb[:4] + ".pdb" + "\n")
+            dock_file.write("-in:file:native " + "/".join(program_dir.split("/")[:-2]) + native + pdb[:4] + ".pdb" + "\n")
         dock_file.write("-unboundrot output_files/relax/" + pdb + "\n\n")
         dock_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
         dock_file.write("-nstruct " + str(runs) + " \n\n")
@@ -229,6 +229,10 @@ def run_flexible(pdb, single_file, run_info, native):
         print("Running relax...")
         start = time.time()
         flex_make_dirs()
+        split_tcr = ["python3", "PDB_Tools_V3.py", pdb, "--tcr_split"]  # Create tcr.pdb file
+        split_pmhc = ["python3", "PDB_Tools_V3.py", pdb, "--pmhc_split"]  # Create pmhc.pdb file
+        subprocess.run(split_tcr)
+        subprocess.run(split_pmhc)
         run_pmhc_relax("pmhc.pdb", run_info["pmhc"], run_info["cpu_pmhc"])
         run_xml_relax("tcr.pdb", run_info["xml"], run_info["cpu_xml"])
         run_bb_relax("tcr.pdb", run_info["bb"], run_info["cpu_bb"])
@@ -240,7 +244,7 @@ def run_flexible(pdb, single_file, run_info, native):
         remove_dock(check_score_dock())  # TODO: provide option to not remove
         print("Running refine...")
         pdb_refine = check_score_dock()
-        run_refine(pdb_refine + ".pdb", run_info["refine"], run_info["cpu_refine"])
+        run_refine(pdb_refine + ".pdb", run_info["refine"], run_info["cpu_refine"], native)
         best_refine = check_score_refine()
         remove_refine(best_refine)  # TODO: provide option to not remove
         print(best_refine)
@@ -456,7 +460,7 @@ def make_flex_docking_file(pdb, runs, cpus, native):
     with open("flag_ensemble_docking", "w") as dock_file:
         dock_file.write("-in:file:s output_files/prepack/" + pdb[:-4] + "_prepack_0001.pdb" + "\n")
         if native != "...":
-            dock_file.write("-in:file:native " + "/".join(program_dir[1:].split("/")[:-2]) + native + pdb[:4] + ".pdb" + "\n")
+            dock_file.write("-in:file:native " + "/".join(program_dir.split("/")[:-2]) + native + pdb[:4] + ".pdb" + "\n")
         dock_file.write("-unboundrot " + pdb + "\n\n")
         dock_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
         dock_file.write("-nstruct " + str(runs) + " \n\n")
@@ -465,6 +469,12 @@ def make_flex_docking_file(pdb, runs, cpus, native):
         dock_file.write("-spin\n-detect_disulf true\n-rebuild_disulf true\n\n")
         dock_file.write("-ensemble1 pmhc_ensemblelist\n-ensemble2 tcr_ensemblelist\n\n")
         dock_file.write("-ex1\n-ex2aro\n\n")
+        dock_file.write("-docking_low_res_score motif_dock_score\n")
+        dock_file.write("-mh:path:scores_BB_BB " + rosetta_dir + "/main/database/additional_protocol_data/motif_dock/xh_16_\n")
+        dock_file.write("-mh:score:use_ss1 false\n")
+        dock_file.write("-mh:score:use_ss2 false\n")
+        dock_file.write("-mh:score:use_aa1 true\n")
+        dock_file.write("-mh:score:use_aa2 true\n")
         dock_file.write("-out:path:all output_files/dock\n")
         dock_file.write("-out:suffix _ensemble_dock\n")
 
@@ -504,17 +514,19 @@ def check_score_dock():
 ################
 # Method: run_refine()
 # Goal: Run refinement protocol
-def run_refine(pdb, runs, cpus):
+def run_refine(pdb, runs, cpus, native):
     dir_dock = rosetta_dir + "/main/source/bin/docking_protocol.mpi." + version
-    make_refine_file(pdb, runs, cpus)
+    make_refine_file(pdb, runs, cpus, native)
     subprocess.run(["mpirun", dir_dock, "@flag_local_refine"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 # Method: make_refine_file()
 # Goal: Generate flag file for refinement
-def make_refine_file(pdb, runs, cpus):
+def make_refine_file(pdb, runs, cpus, native):
     with open("flag_local_refine", "w") as refine_file:
         refine_file.write("-in:file:s output_files/dock/" + pdb + "\n")
+        if native != "...":
+            refine_file.write("-in:file:native " + "/".join(program_dir.split("/")[:-2]) + native + pdb[:4] + ".pdb" + "\n")
         refine_file.write("#SBATCH --ntasks=" + str(runs) + "\n")
         refine_file.write("-nstruct " + str(cpus) + " \n\n")
         refine_file.write("-docking_local_refine\n")
@@ -559,11 +571,6 @@ def run_multi(args):
         prep_dirs(main_dir, args.pdb, pdb)
         os.chdir(main_dir + "/Runs/" + pdb.split(".")[0] + "/")
         print(pdb)
-        # TODO: Handle both of these in the actual flexible docking sections
-        split_tcr = ["python3", "PDB_Tools_V3.py", pdb, "--tcr_split"]
-        split_pmhc = ["python3", "PDB_Tools_V3.py", pdb, "--pmhc_split"]
-        subprocess.run(split_tcr)
-        subprocess.run(split_pmhc)
         # Run Flex auto
         par_run = choose_par(args, ["python3", "TCRcoupler.py", pdb])
         print(par_run)
@@ -637,7 +644,7 @@ def parse_args():
                         type=int)
     parser.add_argument("-e", "--refine", help="(Both) Number of refinement runs done, post dock", default=100,
                         type=int)
-    parser.add_argument("-n", "--native", help="Native structure's folder to run optional comparison to crystal" \
+    parser.add_argument("-n", "--native", help="Native structure folder to run optional comparison to crystal" \
                                                "structure, ensure '/', pdbs have to be in folder", type=str,
                                                default="...")
     return parser.parse_args()

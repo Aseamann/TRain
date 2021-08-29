@@ -14,13 +14,9 @@ import argparse
 
 class PdbTools3:
     # initialize PdbTools
-    def __init__(self, file):
+    def __init__(self, file="..."):
         self.file_name = file
         self.test_list = {}
-
-    #def __init__(self):
-    #    self.file_name = ""
-    #    self.test_list = {}
 
     # method for changing PDB file
     def set_file_name(self, file_name_in):

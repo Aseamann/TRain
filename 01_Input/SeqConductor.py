@@ -28,11 +28,11 @@ gene_dic = {}
 # Goal: Populate the gene dictionary from IMGT data.
 # Output:
 #   gene_dic: Gene Segment Name: AA Sequence
-def create_gene_dic(fasta_file):
+def create_gene_dic(fasta_file, organism):
     with open(fasta_file, "r") as family:
         temp_fam = ""  # Holds current gene segment name
         for line in family:
-            if line[0] == ">":  # Find header
+            if line[0] == ">" and line.split("|")[2].upper() == organism.upper():  # Find header
                 header = line.split("|")
                 temp_fam = header[1]  # gene segment name, creates temp header name
                 gene_dic[temp_fam] = ""  # prepares location in dictionary
@@ -267,15 +267,15 @@ def make_info_table(tcr_dic, file_in="translated_seq.csv"):
             f.write(each + "," + ",".join(info) + "," + ",".join(chains) + "\n")
 
 
-# Method 08: make_rep_builder_file()
+# Method 08: make_fasta_files()
 # Input:
 #   alpha_file - name of alpha chain file
 #   beta_file - name of beta chain file
 #   tcr_dic - dictionary of all tcrs
 # Output:
-#   alpha_file - outputted fasta file for alpha chains for rep builder
-#   beta_file - outputted fasta file for beta chains for rep builder
-def make_rep_tcrmod_file(alpha_file, beta_file, tcr_dic):
+#   alpha_file - outputted fasta file for alpha chains
+#   beta_file - outputted fasta file for beta chains
+def make_fasta_files(alpha_file, beta_file, tcr_dic):
     with open(alpha_file, "w") as file_a:
         with open(beta_file, "w") as file_b:
             for clone_id in tcr_dic:
@@ -312,10 +312,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("single_cell_table", help="Xlsx or Csv of single cell t-cell data", type=str)
     parser.add_argument("-s", "--sheet", help="Sheet name in table", default="0", type=str)
-    parser.add_argument("-r", "--rep_builder", help="(Output) Repertoire Builder input file format", default=False,
-                        action="store_true")
-    parser.add_argument("-l", "--lyra", help="(Output) Lyra input file format", default=False, action="store_true")
-    parser.add_argument("-t", "--tcrmodel", help="(Output) TCRmodel input file format", default=False,
+    parser.add_argument("-f", "--fasta", help="(Output) Fasta file format of results", default=False,
                         action="store_true")
     parser.add_argument("-i", "--information", help="(Output) Creates information table of constructed TCR seq."
                         , default=False , action="store_true")
@@ -324,9 +321,9 @@ def parse_args():
     parser.add_argument("-c", "--columns",
                         help="Positions of gene segments: Clone ID,AV,CDR3a,AJ,BV,CDR3b,BJ | Can exclude Clone ID",
                         default="3,4,5,7,8,9,11", type=str)
-    parser.add_argument("-f", "--full", help="Append each chain with constant region", default=False,
+    parser.add_argument("-a", "--append", help="Append each chain with constant region", default=False,
                         action="store_true")
-    parser.add_argument("-o", "--organism", help="Organism of TCR information submitted for full chain appending",
+    parser.add_argument("-o", "--organism", help="Updated Organism",
                         default="homo sapiens", type=str)
     return parser.parse_args()
 
@@ -334,20 +331,19 @@ def parse_args():
 def main():
     args = parse_args()  # collect arguments
     # create dictionary for program to pull gene family information from
-    create_gene_dic(args.genefamily)
+    create_gene_dic(args.genefamily, args.organism)
     # create tcr dictionary containing each segment
     tcr_dic = get_tcr_info(args.single_cell_table, args.sheet, [int(i) for i in args.columns.split(",")])
     # create full tcr sequences
     tcr_seq_dic = make_tcr_seq(tcr_dic)
-    if args.full:
+    if args.append:
         tcr_seq_dic = append_constant(tcr_seq_dic, args.organism)
     # Create information table with full TCR sequences
     if args.information:
         make_info_table(tcr_seq_dic, ".".join(args.single_cell_table.split(".")[:-1]) + "_Results.csv")
-    if args.rep_builder or args.tcrmodel:
-        make_rep_tcrmod_file("alpha.fasta", "beta.fasta", tcr_seq_dic)
+    if args.fasta:
+        make_fasta_files("alpha.fasta", "beta.fasta", tcr_seq_dic)
 
 
 if __name__ == '__main__':
     main()
-    

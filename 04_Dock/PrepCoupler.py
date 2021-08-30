@@ -3,17 +3,9 @@
 # Version: 1.0
 # Last Updated: August 29th, 2021
 
+import argparse
 from PDB_Tools_V3 import PdbTools3
 import os
-
-####################
-# Global Variables #
-####################
-tool = PdbTools3()  # Initialize PDB tools
-
-#################
-#    Methods    #
-#################
 
 
 ####################
@@ -27,6 +19,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+    tool = PdbTools3()  # Initialize PDB tools
     if os.path.isfile(args.pdb):
         for pdb in sorted(os.listdir(os.getcwd)):
             if pdb.endswith(".pdb"):

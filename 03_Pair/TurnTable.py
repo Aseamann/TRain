@@ -57,8 +57,6 @@ def multiple_pdbs(pdb_folder):
     for pdb in sorted(os.listdir(pdb_folder)):
         if pdb.endswith(".pdb"):
             tool.set_file_name(pdb_folder + pdb)  # Sets PDB in tool
-            print(pdb)
-            # TODO: Update this method to relabel based on input
             tool.clean_pdb()  # Updates to A, B, C, D, E format of PDB and removes any additional chains
             tool.remove_chain(tool.get_b2m_chain())  # Remove B2M
             tool.trim_chain("A", 181)  # Trim MHC at 181
@@ -97,22 +95,26 @@ def tcr_pmhc_pair(tcr_dir, pmhc_dir, tcr_multi, pmhc_multi):
                 locations["pMHC"].append(pmhc)
     else:
         locations["pMHC"].append(pmhc_dir)
-    os.mkdir("Paired")
+    if "Paired" not in os.listdir():
+        os.mkdir("Paired")
     for tcr_location in locations["TCR"]:
         tool.set_file_name(tcr_location)
         tool.clean_pdb()  # Updates to A, B, C, D, E format of PDB and removes any additional chains
-        tmp_tcr = tcr_location.split("/")[-1].split(".")[0] + ".tmp"
+        tmp_tcr = tcr_location.split("/")[-1].split(".")[0] + "_tmp.pdb"
         tool.split_tcr(tmp_tcr)  # Splits to a tmp file for just a/b chains
         for pmhc_location in locations["pMHC"]:
             tool.set_file_name(pmhc_location)
             tool.clean_pdb()  # Updates to A, B, C, D, E format of PDB and removes any additional chains
-            tmp_pmhc = pmhc_location.split("/")[-1].split(".")[0] + ".tmp"
+            tmp_pmhc = pmhc_location.split("/")[-1].split(".")[0] + "_tmp.pdb"
             tool.split_pmhc(tmp_pmhc)  # Splits to a tmp file for peptide and mhc
-            new_name = tmp_tcr.split(".")[0] + "_" + tmp_pmhc.split(".")[0] + ".pdb"  # Name of new PDB
+            new_name = tmp_tcr.split("_")[0] + "_" + tmp_pmhc.split("_")[0] + ".pdb"  # Name of new PDB
             name1 = directory + "/Paired/" + new_name  # TCR first, pMHC second
             tool.set_file_name(directory + '/Paired/' + new_name)
             align_chains(tmp_tcr, tmp_pmhc, name1)  # Pair TCRs to pMHCs, pMHCs get opened first
-            tool.renumber_docking()  # Renumber after creating paired TCRpMHCs
+            tool.trim_chain("A", 181)  # Trim MHC at 181
+            tool.trim_chain("D", 107)  # Trim Alpha at 107
+            tool.trim_chain("E", 113)  # Trim Beta at 113
+            # tool.renumber_docking()  # Renumber after creating paired TCRpMHCs
             os.remove(tmp_pmhc)
         os.remove(tmp_tcr)
 
@@ -126,8 +128,8 @@ def parse_args():
     parser.add_argument("-m", "--pmhc", help="pMHC pdb file or folder of pMHC PDBs", type=str, default="...")
     parser.add_argument("-p", "--pdbs", help="Submit folder of pdbs and all TCRs and pMHCs will be swapped", type=str,
                         default="...")
-    parser.add_argument("-c", "--chimera", help="(Required) Chimera install location, required before first run.", type=str,
-                        default="/Applications/Chimera.app/Contents/MacOS/chimera")
+    parser.add_argument("-c", "--chimera", help="(Required) Chimera install location, required before first run.",
+                        type=str, default="/Applications/Chimera.app/Contents/MacOS/chimera")
     parser.add_argument("-l", "--label", help="Labeling update ex. ABCDE D=Alpha E=Beta", type=str, default="ABCDE")
     parser.add_argument("--b2m", help="Prevent removal of B2M", action="store_true", default=False)
     parser.add_argument("--trimA", help="Prevent trimming of TCR alpha", action="store_true", default=False)
@@ -150,18 +152,18 @@ def main():
     if args.tcr != "...":
         tcr_multi = False  # True if directory of tcrs and not single file
         pmhc_multi = False  # True if directory of pmhcs and not single file
-        if args.tcr.path.isfile():
+        if not os.path.isfile(args.tcr):
             tcr_multi = True
         tcr_location = args.tcr
         if args.pmhc != "...":
-            if args.pmhc.path.istfile():
+            if not os.path.isfile(args.pmhc):
                 pmhc_multi = True
             pmhc_location = args.pmhc
             tcr_pmhc_pair(tcr_location, pmhc_location, tcr_multi, pmhc_multi)
         else:
             print("Please provide pMHC files.")
     # If directory of several PDBs and to swap out each antigen and each TCR
-    if args.pdbs != "...":
+    elif args.pdbs != "...":
         pdb_folder = args.pdbs  # Default structures
         multiple_pdbs(pdb_folder)
 

@@ -258,6 +258,26 @@ class PdbTools3:
         mhc = sorted(tmp_mhc)
         return mhc[-1][1]
 
+    # Return the Beta-2 Microglobulin - based on alignment to reference 1ao7 B2M
+    def get_b2m_chain(self):
+        matrix = matlist.blosum62
+        # Hard coded b2m chain
+        b2m_chain='MIQRTPKIQVYSRHPAENGKSNFLNCYVSGFHPSDIEVDLLKNGERIEKVEHSDLSFSKDWSFYLLYCTEFTPTEKDEYACRVNHVTLSQPCIVKWDRDM'
+        chains = self.get_chains()
+        tmp_b2m = []
+        for chain in sorted(chains):
+            score_b2m = pairwise2.align.globaldx(
+                self.get_amino_acid_on_chain(chain), b2m_chain, matrix,
+                score_only=True, penalize_end_gaps=(False, False))
+            tmp_b2m.append([float(score_b2m), chain])
+        b2m = sorted(tmp_b2m, reverse=True)
+        high_score = b2m[0][0]  # highest align score
+        b2ms = []
+        for each in b2m:  # Tries to grab the first mhc in file
+            if each[0] / high_score >= 0.98:  # similarity is above 98%
+                b2ms.append(each[1])
+        return sorted(b2ms)[0]
+
     def renumber_docking(self, rename="****"):
         if rename != '****':  # Renames if given input, if not writes over file
             tcr = rename
@@ -590,8 +610,11 @@ class PdbTools3:
     def clean_pdb(self):
         tcr_list = self.get_tcr_chains()
         atom_count = 0
+        atom_flag = False  # Catch when atom and ter section is done to append tcr alpha and beta chains
         flag = False
         output = []
+        other_output = []  # Hold other chains
+        ab_output = []  # Temp. holds alpha beta chains until output time.
         alpha = tcr_list["ALPHA"]
         beta = tcr_list["BETA"]
         mhc = self.get_mhc_chain()
@@ -613,19 +636,30 @@ class PdbTools3:
                                 or line[21] == pep:
                             if line[21] == alpha:
                                 line = line[:21] + 'D' + line[22:]
+                                ab_output.append(line)
                             elif line[21] == beta:
                                 line = line[:21] + 'E' + line[22:]
+                                ab_output.append(line)
                             elif line[21] == mhc:
                                 line = line[:21] + 'A' + line[22:]
+                                other_output.append(line)
                             elif line[21] == b2m:
                                 line = line[:21] + 'B' + line[22:]
+                                other_output.append(line)
                             elif line[21] == pep:
                                 line = line[:21] + 'C' + line[22:]
-                            num = line[6:11]
-                            atom_count += 1
-                            if line[16] == 'A':
-                                line = line[:16] + ' ' + line[17:]
-                            output.append(line.replace(num, str(atom_count).rjust(5), 1))
+                                other_output.append(line)
+                    atom_flag = True
+                if line[0:6] != 'ATOM  ' and line[0:6] != 'TER   ' and atom_flag:
+                    other_output.extend(ab_output)  # Ensures alpha and beta chains are at end.
+                    for temp_line in other_output:
+                        num = line[6:11]
+                        atom_count += 1
+                        if temp_line[16] == 'A':
+                            temp_line = temp_line[:16] + ' ' + temp_line[17:]
+                        output.append(temp_line.replace(num, str(atom_count).rjust(5), 1))
+                    output.append("END\n")
+                    break
         with open(self.file_name, 'w+') as f1:
             for line in output:
                 f1.write(line)
@@ -691,6 +725,50 @@ class PdbTools3:
                 else:
                     w.write(line)
 
+    # Remove chain provided based on ID
+    def remove_chain(self, chain_id):
+        with open(self.file_name, 'r') as r:
+            data = r.readlines()
+        with open(self.file_name, 'w+') as w:
+            for line in data:
+                if line[0:6] == 'ATOM  ' or line[0:6] == 'TER   ':
+                    if line[21] != chain_id.upper():
+                        w.write(line)
+
+    # Trims chain submitted with cutoff provided of AA count
+    def trim_chain(self, chain_id, cutoff):
+        output = []
+        with open(self.file_name, "r") as i:
+            for line in i:
+                if line[0:6] == 'ATOM  ' or line[0:6] == 'TER   ':  # Only write over atoms
+                    if line[16] != 'B' and line[26] == ' ':  # Don't allow secondary atoms
+                        if line[21] == chain_id.upper() and int(line[22:26]) <= cutoff or line[21] != chain_id.upper():
+                            output.append(line)
+                else:
+                    output.append(line)
+        with open(self.file_name, "w") as o:
+            for line in output:
+                o.write(line)
+
+    # Splits chains given and renames with given suffix
+    def split_chains(self, chains_in, suffix, dir_location='****'):
+        if dir_location == '****':
+            new_pdb = self.get_file_name()
+        else:
+            new_pdb = dir_location + self.get_pdb_id() + suffix + ".pdb"
+        output = []
+        with open(self.file_name) as f:
+            for line in f:
+                if line[0:6] == 'ATOM  ' or line[0:6] == 'TER   ':
+                    if line[21] in chains_in.upper():
+                        output.append(line)
+                else:
+                    if line[0:6] != 'MASTER':
+                        output.append(line)
+        with open(new_pdb, 'w+') as f1:
+            for line in output:
+                f1.write(line)
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -709,6 +787,8 @@ def parse_args():
     parser.add_argument("--alpha", help="Get alpha chain", default=False, action="store_true")
     parser.add_argument("--beta", help="Get beta chain", default=False, action="store_true")
     parser.add_argument("--resolution", help="Get resolution", default=False, action="store_true")
+    parser.add_argument("--clean_pdb", help="Updated to updated labeling and chain order", default=False,
+                        action="store_true")
     return parser.parse_args()
 
 
@@ -739,6 +819,8 @@ def main():
         print(pdb.get_tcr_chains()['BETA'])
     if args.resolution:
         print(pdb.get_resolution())
+    if args.clean_pdb:
+        pdb.clean_pdb()
 
 
 if __name__ == '__main__':

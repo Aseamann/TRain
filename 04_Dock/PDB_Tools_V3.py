@@ -1,15 +1,17 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
 # Version: 1.00
-# Last Updated: August 4th, 2021
-from math import sqrt
-from Bio import pairwise2
-import warnings
-from Bio import BiopythonDeprecationWarning
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore", BiopythonDeprecationWarning)
-    from Bio.SubsMat import MatrixInfo as matlist
+# Last Updated: October 18th, 2021
 import argparse
+import statistics
+import numpy as np
+from sklearn.decomposition import PCA
+from scipy.spatial.transform import Rotation
+from math import sqrt
+from Bio import Align
+from Bio.Align import substitution_matrices
+import Bio.PDB
+import os
 
 
 class PdbTools3:
@@ -136,28 +138,50 @@ class PdbTools3:
                                   + (atom_2['Z'] - atom_1['Z'])**2)
         return euclidean_distance
 
+    # Collect the atoms from an inputted chain. Provides all values in PDB file
     def get_atoms_on_chain(self, chain):
         atoms = []
         with open(self.file_name, 'r') as file:
             for line in file:
                 if line[0:6] == 'ATOM  ':
-                    if line[21] == chain.upper() and len(line) >= 76:
+                    if line[21] == chain and len(line) >= 76:
                         atoms.append({'atom_num': int(line[6:11]), 'atom_id': line[13:16].strip(),
                                 'atom_comp_id': line[17:20],
                                 'chain_id': line[21], 'comp_num': int(line[22:26]), 'X': float(line[31:38]),
                                 'Y': float(line[38:46]), 'Z': float(line[46:54]), 'occupancy': float(line[55:60]),
                                 'B_iso_or_equiv': float(line[60:66]), 'atom_type': line[77]})
-                    elif line[21] == chain.upper() and len(line) >= 76:
+                    elif line[21] == chain and len(line) >= 76:
                         atoms.append({'atom_num': int(line[6:11]), 'atom_id': line[13:16].strip(),
                                 'atom_comp_id': line[17:20],
                                 'chain_id': line[21], 'comp_num': int(line[22:26]), 'X': float(line[31:38]),
                                 'Y': float(line[38:46]), 'Z': float(line[46:54]), 'occupancy': float(line[55:60])})
         return atoms
 
+    # Rebuilt lines for atoms information submitted
+    def rebuild_atom_line(self, atoms):
+        output = ""
+        for atom in atoms:
+            # Reformat ATOM lines - Write this in separate method
+            line = 'ATOM  ' + str(atom['atom_num']).rjust(5) + "  " + atom['atom_id'].ljust(3) + " "
+            line += atom['atom_comp_id'] + " " + atom['chain_id'] + str(atom['comp_num']).rjust(4) + "    "
+            # XYZ
+            line += str(format(atom['X'], ".3f")).rjust(8) + str(format(atom['Y'], ".3f")).rjust(8)
+            line += str(format(atom['Z'], ".3f")).rjust(8)
+            # Post XYZ
+            line += str(format(atom['occupancy'], ".2f")).rjust(6)
+            line += str(format(atom['B_iso_or_equiv'], ".2f")).rjust(6) + "           "
+            line += atom['atom_type'] + "\n"
+            output += line
+        return output
+
     # Returns alpha and beta chain IDs based on seq. alignment to 1a07 PDB entry chains. Confirms that it is a
     # partnering TCR chain
     def get_tcr_chains(self):
-        matrix = matlist.blosum62
+        aligner = Align.PairwiseAligner()
+        aligner.mode = 'global'
+        aligner.substitution_matrix = substitution_matrices.load('BLOSUM62')
+        aligner.target_end_gap_score = 0.0
+        aligner.query_end_gap_score = 0.0
         result = {}
         # Hard coded peptide chains for alpha and beta elements of the TCR_file
         alpha_chain = [
@@ -174,37 +198,43 @@ class PdbTools3:
         chains = self.get_chains()
         tmp_alpha = []
         tmp_beta = []
-        for chain in chains:
-            score_alpha = pairwise2.align.globaldx(self.get_amino_acid_on_chain(chain), alpha_chain[0], matrix,
-                                                   score_only=True, penalize_end_gaps=(False, False))
-            tmp_alpha.append([float(score_alpha), chain])
-            score_beta = pairwise2.align.globaldx(self.get_amino_acid_on_chain(chain), beta_chain[0], matrix,
-                                                  score_only=True, penalize_end_gaps=(False, False))
-            tmp_beta.append([float(score_beta), chain])
+        # Assume that alpha and beta chains are next to each other in PDB file
+        for pos in range(0, len(chains)):
+            score_alpha = aligner.align(self.get_amino_acid_on_chain(chains[pos]), alpha_chain[0])[0].score
+            tmp_alpha.append([float(score_alpha), chains[pos]])
+            # Position in front
+            if pos + 1 in range(0, len(chains)):
+                score_beta = aligner.align(self.get_amino_acid_on_chain(chains[pos + 1]), beta_chain[0])[0].score
+                tmp_beta.append([float(score_beta), chains[pos + 1]])
+            # Position behind
+            if pos - 1 in range(0, len(chains)):
+                score_beta = aligner.align(self.get_amino_acid_on_chain(chains[pos - 1]), beta_chain[0])[0].score
+                tmp_beta.append([float(score_beta), chains[pos - 1]])
         alpha = sorted(tmp_alpha)
         beta = sorted(tmp_beta)
         result['ALPHA'] = alpha[-1][1]
         result['BETA'] = beta[-1][1]
-        atom = self.first_atom_on_chain(result['ALPHA'])
-        position = -1
-        while True:
-            atom2 = self.first_atom_on_chain(result['BETA'])
-            # Distance between 1st atom in each chain
-            distance1 = self.euclidean_of_atoms(atom['atom_num'], atom2['atom_num'])
-            # Distance between 1st and 125 atoms in each chain
-            distance2 = self.euclidean_of_atoms(atom['atom_num'], atom2['atom_num'] + 125)
-            # Determines if TCR chains are within typical distance.
-            if distance1 <= 46 and abs(distance1 - distance2) <= 15:
-                self.test_list[self.get_file_name()] = abs(distance1 - distance2)
-                result['BETA'] = beta[position][1]
-                break
-            elif position == (len(beta) * -1):
-                print(self.get_file_name() + ' : Possibly does not contain both TCR chains')
-                result['BETA'] = beta[-1][1]
-                break
-            else:
-                position -= 1
-                result['BETA'] = beta[position][1]
+        # Old method to confirm chains were proximal to each other.
+        # while True:
+        # atom = self.first_atom_on_chain(result['ALPHA'])
+        # position = -1
+        #     atom2 = self.first_atom_on_chain(result['BETA'])
+        #     # Distance between 1st atom in each chain
+        #     distance1 = self.euclidean_of_atoms(atom['atom_num'], atom2['atom_num'])
+        #     # Distance between 1st and 125 atoms in each chain
+        #     distance2 = self.euclidean_of_atoms(atom['atom_num'], atom2['atom_num'] + 125)
+        #     # Determines if TCR chains are within typical distance.
+        #     if distance1 <= 46 and abs(distance1 - distance2) <= 15:
+        #         self.test_list[self.get_file_name()] = abs(distance1 - distance2)
+        #         result['BETA'] = beta[position][1]
+        #         break
+        #     elif position == (len(beta) * -1):
+        #         print(self.get_file_name() + ' : Possibly does not contain both TCR chains')
+        #         result['BETA'] = beta[-1][1]
+        #         break
+        #     else:
+        #         position -= 1
+        #         result['BETA'] = beta[position][1]
         return result
 
     # Returns the amino acid sequence of either 'ALPHA' or 'BETA' chain as single letter AA abbreviation
@@ -230,20 +260,39 @@ class PdbTools3:
     def get_peptide_chain(self):
         chains = self.get_chains()
         chain_dic = {}
-        length = 10000
-        peptide = ''
+        peptides = []
         for chain in chains:
             chain_dic[chain] = self.get_amino_acid_on_chain(chain)
+        # Assumes peptide is shorter than 20 aa's
         for chain in chain_dic:
-            if len(chain_dic[chain]) < length:
-                length = len(chain_dic[chain])
-                peptide = chain
+            if len(chain_dic[chain]) < 20:
+                peptides.append(chain)
+        # Peptide has to be within set distance of first AA in MHC
+        mhc_1 = self.first_atom_on_chain(self.get_mhc_chain())
+        position = 0
+        while True:
+            peptide_first = self.first_atom_on_chain(peptides[position])
+            peptide_last = self.get_atoms_on_chain(peptides[position])[-1]
+            # Distance between N-terminus of MHC and first AA in peptide
+            distance1 = self.euclidean_of_atoms(mhc_1['atom_num'], peptide_first['atom_num'])
+            # Distance between N-terminus of MHC and last AA in peptide
+            distance2 = self.euclidean_of_atoms(mhc_1['atom_num'], peptide_last['atom_num'])
+            # Determines if N-terminus is close enough to start or end of peptide being tested
+            if distance1 <= 35 or distance2 <= 35:
+                peptide = peptides[position]
+                break
+            else:
+                position += 1
         return peptide
 
     # Returns the MHC chain - based on COMPND section labeling HISTOCOMPATIBILITY ANTIGEN
     # WILL LATER CONVERT THIS TO HOW I CHECK FOR TCR CHAINS
     def get_mhc_chain(self):
-        matrix = matlist.blosum62
+        aligner = Align.PairwiseAligner()
+        aligner.mode = 'global'
+        aligner.substitution_matrix = substitution_matrices.load('BLOSUM62')
+        aligner.target_end_gap_score = 0.0
+        aligner.query_end_gap_score = 0.0
         # Hard coded mhc chain
         mhc_chain = 'GSHSMRYFFTSVSRPGRGEPRFIAVGYVDDTQFVRFDSDAASQRMEPRAPWIEQEGPEYWDGETRKVKAHSQTHRVDLGTLRGYYNQSEAGSHTV'\
                     'QRMYGCDVGSDWRFLRGYHQYAYDGKDYIALKEDLRSWTAADMAAQTTKHKWEAAHVAEQLRAYLEGTCVEWLRRYLENGKETLQRTDAPKTHMT'\
@@ -251,24 +300,24 @@ class PdbTools3:
         chains = self.get_chains()
         tmp_mhc = []
         for chain in chains:
-            score_mhc = pairwise2.align.globaldx(
-                self.get_amino_acid_on_chain(chain), mhc_chain, matrix,
-                score_only=True, penalize_end_gaps=(False, False))
+            score_mhc = aligner.align(self.get_amino_acid_on_chain(chain), mhc_chain)[0].score
             tmp_mhc.append([float(score_mhc), chain])
         mhc = sorted(tmp_mhc)
         return mhc[-1][1]
 
     # Return the Beta-2 Microglobulin - based on alignment to reference 1ao7 B2M
     def get_b2m_chain(self):
-        matrix = matlist.blosum62
+        aligner = Align.PairwiseAligner()
+        aligner.mode = 'global'
+        aligner.substitution_matrix = substitution_matrices.load('BLOSUM62')
+        aligner.target_end_gap_score = 0.0
+        aligner.query_end_gap_score = 0.0
         # Hard coded b2m chain
-        b2m_chain='MIQRTPKIQVYSRHPAENGKSNFLNCYVSGFHPSDIEVDLLKNGERIEKVEHSDLSFSKDWSFYLLYCTEFTPTEKDEYACRVNHVTLSQPCIVKWDRDM'
+        b2m_chain = 'MIQRTPKIQVYSRHPAENGKSNFLNCYVSGFHPSDIEVDLLKNGERIEKVEHSDLSFSKDWSFYLLYCTEFTPTEKDEYACRVNHVTLSQPCIVKWDRDM'
         chains = self.get_chains()
         tmp_b2m = []
         for chain in sorted(chains):
-            score_b2m = pairwise2.align.globaldx(
-                self.get_amino_acid_on_chain(chain), b2m_chain, matrix,
-                score_only=True, penalize_end_gaps=(False, False))
+            score_b2m = aligner.align(self.get_amino_acid_on_chain(chain), b2m_chain)[0].score
             tmp_b2m.append([float(score_b2m), chain])
         b2m = sorted(tmp_b2m, reverse=True)
         high_score = b2m[0][0]  # highest align score
@@ -545,10 +594,8 @@ class PdbTools3:
             tcr = 'tcr.pdb'  # name of resulting file
         else:
             tcr = update_name
-        #alpha = self.get_tcr_chains()["ALPHA"]
-        #beta = self.get_tcr_chains()["BETA"]
-        alpha = "D"
-        beta = "E"
+        alpha = self.get_tcr_chains()["ALPHA"]
+        beta = self.get_tcr_chains()["BETA"]
         output = []
         with open(self.file_name) as f:
             for line in f:
@@ -564,46 +611,46 @@ class PdbTools3:
 
     def clean_docking_count(self, rename='****'):
         POSSEQ = [22, 26]
-        POSCHAIN = 21
         ANUM = [6, 11]
         CHAINID = 21
 
         if rename != '****':
             pdb_1 = rename
         else:
-            pdb_1 = self.pdb  # Default naming if no input
+            pdb_1 = self.file_name  # Default naming if no input
         atom_count = 1  # Keeps track of atom number
         old_res_count = -10000
         res_count = 0  # Keeps track of residue number
         chains = []  # Chains to keep track of previous
         header = False  # Marks down header
-        with open(self.pdb, "r") as i:
+        with open(self.file_name, "r") as i:
             with open(pdb_1, 'w+') as o:
                 for line in i:
-                    if line[0:6] == 'HEADER':
-                        o.write(line)
-                        header = True  # Marks header
-                    if header:
-                        o.write('EXPDTA    DOCKING MODEL           RENUMBERED\n')
-                        header = False  # Marks EXPDTA
-                    if line[0:6] == 'ATOM  ':  # Only writes over atoms
-                        if line[16] != 'B' and line[26] == ' ':  # Don't allow secondary atoms
-                            temp_num = line[ANUM[0]:ANUM[1]]  # Saves temp old atom count
-                            temp_res = int(line[POSSEQ[0]:POSSEQ[1]])  # Saves temp old res count
-                            if len(chains) == 0:
-                                chains.append(line[CHAINID])
-                            elif line[CHAINID] != chains[-1]:  # Catches when a new chain starts
-                                chains.append(line[CHAINID])
-                                o.write('TER\n')
-                            if temp_res != old_res_count:  # Increases residue count
-                                old_res_count = int(line[POSSEQ[0]:POSSEQ[1]])
-                                res_count += 1
-                            # Replaces atom count
-                            line = line.replace(temp_num, str(atom_count).rjust(5), 1)
-                            atom_count += 1
-                            # Replaces residue count on line
-                            line = line[:22] + str(res_count).rjust(4) + line[26:]
+                    if line[0:6] != "MODEL " or line[0:6] != "ENDMDL":
+                        if line[0:6] == 'HEADER':
                             o.write(line)
+                            header = True  # Marks header
+                        if header:
+                            o.write('EXPDTA    DOCKING MODEL           RENUMBERED\n')
+                            header = False  # Marks EXPDTA
+                        if line[0:6] == 'ATOM  ':  # Only writes over atoms
+                            if line[16] != 'B' and line[26] == ' ':  # Don't allow secondary atoms
+                                temp_num = line[ANUM[0]:ANUM[1]]  # Saves temp old atom count
+                                temp_res = int(line[POSSEQ[0]:POSSEQ[1]])  # Saves temp old res count
+                                if len(chains) == 0:
+                                    chains.append(line[CHAINID])
+                                elif line[CHAINID] != chains[-1]:  # Catches when a new chain starts
+                                    chains.append(line[CHAINID])
+                                    o.write('TER\n')
+                                if temp_res != old_res_count:  # Increases residue count
+                                    old_res_count = int(line[POSSEQ[0]:POSSEQ[1]])
+                                    res_count += 1
+                                # Replaces atom count
+                                line = line.replace(temp_num, str(atom_count).rjust(5), 1)
+                                atom_count += 1
+                                # Replaces residue count on line
+                                line = line[:22] + str(res_count).rjust(4) + line[26:]
+                                o.write(line)
                 o.write('TER\nEND\n')
 
     # Returns a reformatted PDB with just the primary TCRpMHC labeled A: MHC, B: B2M, C: Pep, D: Alpha, E: Beta
@@ -622,44 +669,46 @@ class PdbTools3:
         pep = self.get_peptide_chain()
         with open(self.file_name) as f:
             for line in f:
-                if line[0:6] == 'HEADER':
-                    output.append(line)
-                    flag = True
-                if flag:
-                    output.append('EXPDTA    THEORETICAL MODEL    CLEAN TCR ALPHA:D BETA:E\n')
-                    flag = False
-                if line[0:6] == 'ATOM  ' or line[0:6] == 'TER   ':
-                    if line[16] != 'B':
-                        # Selective to chains that are primary in file.
-                        if line[21] == alpha or line[21] == beta\
-                                or line[21] == mhc or line[21] == b2m\
-                                or line[21] == pep:
-                            if line[21] == alpha:
-                                line = line[:21] + 'D' + line[22:]
-                                ab_output.append(line)
-                            elif line[21] == beta:
-                                line = line[:21] + 'E' + line[22:]
-                                ab_output.append(line)
-                            elif line[21] == mhc:
-                                line = line[:21] + 'A' + line[22:]
-                                other_output.append(line)
-                            elif line[21] == b2m:
-                                line = line[:21] + 'B' + line[22:]
-                                other_output.append(line)
-                            elif line[21] == pep:
-                                line = line[:21] + 'C' + line[22:]
-                                other_output.append(line)
-                    atom_flag = True
-                if line[0:6] != 'ATOM  ' and line[0:6] != 'TER   ' and atom_flag:
-                    other_output.extend(ab_output)  # Ensures alpha and beta chains are at end.
-                    for temp_line in other_output:
-                        num = line[6:11]
-                        atom_count += 1
-                        if temp_line[16] == 'A':
-                            temp_line = temp_line[:16] + ' ' + temp_line[17:]
-                        output.append(temp_line.replace(num, str(atom_count).rjust(5), 1))
-                    output.append("END\n")
-                    break
+                if line[0:6] != 'ANISOU':  # Skip ANISOU id
+                    if line[0:6] == 'HEADER':
+                        output.append(line)
+                        flag = True
+                    if flag:
+                        output.append('EXPDTA    THEORETICAL MODEL    CLEAN TCR ALPHA:D BETA:E\n')
+                        flag = False
+                    if line[0:6] == 'ATOM  ' or line[0:6] == 'TER   ':
+                        # Skip secondary atom positions
+                        if line[16] != 'B':
+                            # Selective to chains that are primary in file.
+                            if line[21] == alpha or line[21] == beta\
+                                    or line[21] == mhc or line[21] == b2m\
+                                    or line[21] == pep:
+                                if line[21] == alpha:
+                                    line = line[:21] + 'D' + line[22:]
+                                    ab_output.append(line)
+                                elif line[21] == beta:
+                                    line = line[:21] + 'E' + line[22:]
+                                    ab_output.append(line)
+                                elif line[21] == mhc:
+                                    line = line[:21] + 'A' + line[22:]
+                                    other_output.append(line)
+                                elif line[21] == b2m:
+                                    line = line[:21] + 'B' + line[22:]
+                                    other_output.append(line)
+                                elif line[21] == pep:
+                                    line = line[:21] + 'C' + line[22:]
+                                    other_output.append(line)
+                        atom_flag = True
+                    if line[0:6] != 'ATOM  ' and line[0:6] != 'TER   ' and atom_flag:
+                        other_output.extend(ab_output)  # Ensures alpha and beta chains are at end.
+                        for temp_line in other_output:
+                            num = line[6:11]
+                            atom_count += 1
+                            if temp_line[16] == 'A':
+                                temp_line = temp_line[:16] + ' ' + temp_line[17:]
+                            output.append(temp_line.replace(num, str(atom_count).rjust(5), 1))
+                        output.append("END\n")
+                        break
         with open(self.file_name, 'w+') as f1:
             for line in output:
                 f1.write(line)
@@ -769,10 +818,233 @@ class PdbTools3:
             for line in output:
                 f1.write(line)
 
+    # Superimpose two PDBs
+    def superimpose(self, ref_pdb, target_order, ref_order, new_name_in="..."):
+        aligner = Align.PairwiseAligner()
+        aligner.mode = 'local'
+        aligner.gap_score = -100.00
+        aligner.match_score = 2.0
+        aligner.mismatch_score = 0.0
+
+        # Collect target pdb seq
+        target_pdb = self.get_file_name()
+        target_seq = {}  # Dictionary chain_id:seq
+        for chain in self.get_chains():
+            target_seq[chain] = self.get_amino_acid_on_chain(chain)
+
+        # Collect reference pdb seq
+        self.set_file_name(ref_pdb)
+        ref_seq = {}  # Dictionary chain_id:seq
+        for chain in self.get_chains():
+            ref_seq[chain] = self.get_amino_acid_on_chain(chain)
+        # Set back to target pdb
+        self.set_file_name(target_pdb)
+
+        # Starting positions of each AA from target and reference
+        # 'target' -> 'chain' -> [start, end]
+        start_pos = {"target": {}, "reference": {}}
+        for chain in list(target_order):
+            # print(chain)
+            start_pos['target'][chain] = []
+        for chain in list(ref_order):
+            # print(chain)
+            start_pos['reference'][chain] = []
+
+        # Produce alignments
+        target_pos = list(target_order)
+        ref_pos = list(ref_order)
+        for chain_pos in range(0, len(target_pos)):
+            # Align with chain in target_order and ref_order
+            target_chain = target_seq[target_pos[chain_pos]]
+            reference_chain = ref_seq[ref_pos[chain_pos]]
+            temp_align = aligner.align(target_chain, reference_chain)
+            # Uncomment these lines to show alignments
+            # print("Target Chain: " + target_pos[chain_pos])
+            # print("Reference Chain: " + ref_pos[chain_pos])
+            # print(temp_align[0])
+            start_pos['target'][target_pos[chain_pos]] = [temp_align[0].path[0][0], temp_align[0].path[1][0]]
+            start_pos['reference'][ref_pos[chain_pos]] = [temp_align[0].path[0][1], temp_align[0].path[1][1]]
+
+        # Initialize parser
+        parser = Bio.PDB.PDBParser(QUIET=True)
+
+        # Gather Structures
+        ref_structure = parser.get_structure("reference", ref_pdb)
+        target_structure = parser.get_structure("target", self.file_name)
+
+        # Collect structures
+        ref_model = ref_structure[0]
+        target_model = target_structure[0]
+
+        # Collecting alpha carbons
+        ref_atoms = []
+        target_atoms = []
+        # Reference Model
+        for ref_chain in ref_model:
+            chain = ref_chain.__repr__().split("=")[1].split(">")[0]
+            # print(ref_chain)
+            # print(chain)
+            if chain in ref_pos:
+                first_in_chain = True
+                skip_switch = False
+                start = 0
+                end = 0
+                last_count = 0
+                for ref_res in ref_chain:
+                    if ref_res.get_resname() != "HOH" and 'CA' in ref_res:
+                        if first_in_chain:
+                            offset = ref_res.get_id()[1]
+                            start = start_pos['reference'][chain][0] + offset
+                            end = start_pos['reference'][chain][1] + offset
+                            first_in_chain = False
+                        if ref_res.get_id()[1] in range(start, end):
+                            if skip_switch:
+                                if ref_res.get_id()[1] != last_count + 1:  # Catch when count skips a number
+                                    end += ref_res.get_id()[1] - last_count - 1
+                            ref_atoms.append(ref_res['CA'])
+                            last_count = ref_res.get_id()[1]
+                            skip_switch = True
+        # Target Model
+        for target_chain in target_model:
+            chain = target_chain.__repr__().split("=")[1].split(">")[0]
+            if chain in target_pos:
+                first_in_chain = True
+                skip_switch = False
+                start = 0
+                end = 0
+                last_count = 0
+                for target_res in target_chain:
+                    if target_res.get_resname() != "HOH" and 'CA' in target_res:
+                        if first_in_chain:  # If chain doesn't start count at position 0
+                            offset = target_res.get_id()[1]
+                            start = start_pos['target'][chain][0] + offset
+                            end = start_pos['target'][chain][1] + offset
+                            first_in_chain = False
+                        if target_res.get_id()[1] in range(start, end):
+                            if skip_switch:
+                                if target_res.get_id()[1] != last_count + 1:  # Catch when count skips a number
+                                    end += target_res.get_id()[1] - last_count - 1
+                            target_atoms.append(target_res['CA'])
+                            last_count = target_res.get_id()[1]
+                            skip_switch = True
+        # print(len(ref_atoms))
+        # print(len(target_atoms))
+        # Superimposing
+        super_imposer = Bio.PDB.Superimposer()
+        super_imposer.set_atoms(ref_atoms, target_atoms)
+        super_imposer.apply(target_model.get_atoms())
+
+        # Save structure
+        print("RMSD: " + str(super_imposer.rms) + " Atoms Pulled: " + str(len(target_atoms)))
+        io = Bio.PDB.PDBIO()
+        io.set_structure(target_structure)
+        if new_name_in != "...":
+            new_name = new_name_in
+        else:
+            new_name = self.get_file_name().split(".")[0] + "_aligned.pdb"
+        io.save(new_name)
+
+    def get_center(self):
+        # Pull atoms from each chain: default_atoms {'CHAIN_ID': [list of atoms dictionaries]}
+        default_atoms = {}
+        cords_dic = {'X': [], 'Y': [], 'Z': []}
+        for chain in self.get_chains():
+            default_atoms[chain] = self.get_atoms_on_chain(chain)
+            for atom in default_atoms[chain]:
+                for key in cords_dic.keys():
+                    cords_dic[key].append(atom[key])
+        # Calculate center
+        centroid = [round(statistics.mean(cords_dic['X']), 3), round(statistics.mean(cords_dic['Y']), 3),
+                    round(statistics.mean(cords_dic['Z']), 3)]
+        return centroid
+
+    def center(self, new_name_in="..."):
+        atoms = []
+        full_atom = []
+        # Collect atom information from PDB
+        for chain in self.get_chains():
+            chain_atoms = self.get_atoms_on_chain(chain)
+            for atom in chain_atoms:
+                # Append atom_line with full atom information
+                full_atom.append(atom)
+                # Append atoms with just the coordinates of each atom
+                atoms.append([atom['X'], atom['Y'], atom['Z']])
+        # Convert to array
+        atom_array = np.array(atoms)
+        # Calculate avg for each axis
+        current_avg = np.mean(atom_array, axis=0)
+        # Center the coordinates
+        new_array = []
+        for set_pos in atom_array:
+            x = set_pos - current_avg
+            new_array.append(x)
+        # Calculate PCA
+        pca = PCA(n_components=3)
+        pca.fit(new_array)
+        transpose = np.transpose(pca.components_)
+        # Determinate of components matrix - Corrects if determinate is negative
+        determinate = np.linalg.det(transpose)
+        if determinate < 0:
+            print("Determinate")
+            for position in transpose:
+                position[0] = position[0] * -1
+        # Rotate x-axis
+        # Always have N-terminus in positive coordinates (Fixes flips on x-axis)
+        test_x = np.matmul(new_array[-1], transpose)
+        if test_x[1] < 0:
+            print("x-axis")
+            r = Rotation.from_euler('x', 180, degrees=True)
+            transpose = r.apply(transpose)
+        # Rotate y-axis
+        # Always have first chain on left side | alpha on left side (Fixes flips on y-axis)
+        # Determines by looking at last atom which should be on the Beta chain
+        test_y = np.matmul(new_array[-1], transpose)
+        if test_y[0] < 0:
+            print("Y-axis")
+            r = Rotation.from_euler('y', 180, degrees=True)
+            transpose = r.apply(transpose)
+        # Multiply by EV
+        new_cords = np.matmul(new_array, transpose)
+        # Replace XYZ coordinates
+        axis = ['X', 'Y', 'Z']
+        for num in range(0, len(full_atom)):
+            for position in range(0, len(axis)):
+                full_atom[num][axis[position]] = new_cords[num][position]
+        # Write to new file
+        if new_name_in != "...":
+            new_name = new_name_in
+        else:
+            new_name = self.get_file_name().split("/")[-1].split(".")[0] + "_center.pdb"
+        with open(new_name, "w") as f:
+            # Send to reconstruct atom lines
+            f.write(self.rebuild_atom_line(full_atom))
+        # --- Bug testing ---Print initial center coord.
+        # print("Previous Center")
+        # print(self.get_center())
+        # # Print updated center coord.
+        # print("Center")
+        # self.set_file_name(new_name)
+        # print(self.get_center())
+
+    def join(self, pdb_1, pdb_2, new_name):
+        atoms_lines = []
+        pdbs = [pdb_1, pdb_2]
+        for pdb in pdbs:
+            with open(pdb, "r") as f1:
+                for line in f1:
+                    if line[0:6] == "ATOM  " or line[0:6] == "TER   ":
+                        atoms_lines.append(line)
+        with open(new_name, "w") as f2:
+            for line in atoms_lines:
+                f2.write(line)
+        return new_name
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("pdb", help="Full crystal structure", type=str)
+    parser.add_argument("--get_tcr", help="Returns the TCR chain ids", default=False, action="store_true")
+    parser.add_argument("--get_mhc", help="Returns the mhc chain id", default=False, action="store_true")
     parser.add_argument("--renum", help="Updates numbering of TCR for docking", default=False, action="store_true")
     parser.add_argument("--trim", help="Trim TCR chains to only contain variable region", default=False,
                         action="store_true")
@@ -789,12 +1061,20 @@ def parse_args():
     parser.add_argument("--resolution", help="Get resolution", default=False, action="store_true")
     parser.add_argument("--clean_pdb", help="Updated to updated labeling and chain order", default=False,
                         action="store_true")
+    parser.add_argument("--align", help="(Align) Superimpose this reference structure to submitted pdb", type=str)
+    parser.add_argument("--tar_chains", help="(Align) Chains from target to match with reference", type=str)
+    parser.add_argument("--ref_chains", help="(Align) Chains from reference to match with target", type=str)
+    parser.add_argument("--center", help="Center TCR to cord. 0,0,0", action="store_true", default=False)
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
     pdb = PdbTools3(args.pdb)
+    if args.get_tcr:
+        print(pdb.get_tcr_chains())
+    if args.get_mhc:
+        print(pdb.get_mhc_chain())
     if args.mhc_split:
         pdb.split_mhc()
     if args.trim:
@@ -821,9 +1101,18 @@ def main():
         print(pdb.get_resolution())
     if args.clean_pdb:
         pdb.clean_pdb()
+    if args.align:
+        pdb.superimpose(args.align, args.tar_chains, args.ref_chains)
+    if args.center:
+        if os.path.isdir(args.pdb):
+            os.mkdir("Results")
+            for each in os.listdir(args.pdb):
+                print(each.split(".")[0])
+                pdb.set_file_name(args.pdb + "/" + each)
+                pdb.center("Results/" + each.split(".")[0] + "_center.pdb")
+        else:
+            pdb.center()
 
 
 if __name__ == '__main__':
     main()
-
-

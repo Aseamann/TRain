@@ -1,23 +1,19 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
-# Version: 1.01
-# Last Updated: July 28th, 2021
+# Version: 0.03
+# Last Updated: November 1st, 2021
 
 import argparse
-import os
 import pandas
-from Bio import pairwise2
-import warnings
-from Bio import BiopythonDeprecationWarning
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore", BiopythonDeprecationWarning)
-    from Bio.SubsMat import MatrixInfo as matlist
+from Bio import Align
 
 
 #################
 # Global
 #################
 gene_dic = {}
+verbose = False
+silent = False
 
 
 #################
@@ -57,15 +53,18 @@ def get_tcr_info(file, sheet, positions):
     tcr_dic = {}  # Creates output dictionary
     clone_id_count = {}  # Keeps track of repeat clone ids
     previous_id = ""
-    # if not clone_id provided
-    if len(positions) == 6:
-        positions.insert(0, -1)
-    if file.endswith(".xlsx"):  # Open if xlsx
+    # Open if xlsx
+    if file.endswith(".xlsx"):
         if sheet == "0":  # If no sheet name was provided, set default to primary sheet
             sheet = 0
         df = pandas.read_excel(file, sheet_name=sheet, engine='openpyxl')
-    elif file.endswith(".csv"):  # Open if csv
+    # Open if csv
+    elif file.endswith(".csv"):
         df = pandas.read_csv(file)
+    # if not clone_id provided
+    if len(positions) == 6:
+        positions.insert(0, -1)
+        df["clone_ID"] = ""  # Add column to end of dataframe for the new clone_ids, referenced in position -1
     for key, value in df.iterrows():  # Reading over table with pandas
         values = value.array
         # Finds each clone_id.
@@ -96,7 +95,8 @@ def get_tcr_info(file, sheet, positions):
                                                  values[positions[4]].split(";")[0], values[positions[5]],
                                                  values[positions[6]]]
             else:
-                print(f"Skipped due to gene segment not found:\n{value}")
+                if not silent:
+                    print(f"Skipped due to gene segment not found:\n{value}")
     return tcr_dic
 
 
@@ -120,15 +120,36 @@ def make_tcr_seq(tcr_parts):
     # For each clone-id
     for each in tcr_parts:
         # Alignment construction for TRAV, and CDR3A
-        temp_seq_alpha = align_overlap(gene_dic[tcr_parts[each][0]], tcr_parts[each][1], "V")
+        if verbose and not silent:
+            print("\n\n\n>" + each)
+            print("ALPHA: ")
+            print("V: \n" + gene_dic[tcr_parts[each][0]])
+            print("CDR: \n" + tcr_parts[each][1])
+        temp_seq_alpha = align_overlap(gene_dic[tcr_parts[each][0]], tcr_parts[each][1], "V", each)
+        if verbose and not silent:
+            print("V-CDR: \n" + temp_seq_alpha)
         # Alignment construction for TRAV + CDR3A and TRAJ
-        temp_seq_alpha = str(align_overlap(temp_seq_alpha, gene_dic[tcr_parts[each][2]], "J"))
+        temp_seq_alpha = align_overlap(temp_seq_alpha, gene_dic[tcr_parts[each][2]], "J", each)
+        if verbose and not silent:
+            print("Full: \n" + temp_seq_alpha)
         # # Alignment construction for TRBV, and CDR3B
-        temp_seq_beta = align_overlap(gene_dic[tcr_parts[each][3]], tcr_parts[each][4], "V")
+        if verbose and not silent:
+            print("\nBETA: ")
+            print("V: \n" + gene_dic[tcr_parts[each][3]])
+            print("CDR: \n" + tcr_parts[each][4])
+        temp_seq_beta = align_overlap(gene_dic[tcr_parts[each][3]], tcr_parts[each][4], "V", each)
+        if verbose and not silent:
+            print("V-CDR: \n" + temp_seq_beta)
         # Alignment construction for TRBV + CDR3B and TRBJ
-        temp_seq_beta = align_overlap(temp_seq_beta, gene_dic[tcr_parts[each][5]], "J")
+        temp_seq_beta = align_overlap(temp_seq_beta, gene_dic[tcr_parts[each][5]], "J", each)
+        if verbose and not silent:
+            print("Full: \n" + temp_seq_beta)
         parts = tcr_parts[each]
-        output_seqs[each] = [temp_seq_alpha, temp_seq_beta, parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]]
+        # 0: Alpha_chain, 1: Beta chain, 2: aV segment, 3: CDR3a, 4: aJ segment, 5: bV segment, 6: CDR3b, 7: bJ segment
+        # 8: aV seq, 9: aJ seq, 10: bV seq, 11: bJ seq
+        output_seqs[each] = [temp_seq_alpha, temp_seq_beta, parts[0], parts[1], parts[2], parts[3], parts[4], parts[5],
+                             gene_dic[tcr_parts[each][0]], gene_dic[tcr_parts[each][2]], gene_dic[tcr_parts[each][3]],
+                             gene_dic[tcr_parts[each][5]]]
     return output_seqs
 
 
@@ -139,43 +160,87 @@ def make_tcr_seq(tcr_parts):
 #   part - If overlapping V or J segment
 # Goal: Looks for overlap between front and end AAs besides when single AA overlap
 # Output: Resulting overlapped segments -- if == J: full TCR sequence
-def align_overlap(front, end, part):
-    matrix = matlist.blosum62  # Protein alignment scoring matrix
-    score = -1
+def align_overlap(front, end, part, clone_id):
+    aligner = Align.PairwiseAligner()
+    aligner.mode = 'local'
     best_align = []
-    if part == "V":
-        overlap_cut = 4
-    else:
-        overlap_cut = 0
     # Finding shortest alignment with best score to append regions
     # overlap cut modified for v or j based on testing
     if part == "V":
-        for length in range(len(end) - overlap_cut, 1, -1):
-            temp_align = pairwise2.align.localdx(front[length * -1:], end, matrix, one_alignment_only=True)
-            if temp_align[0][3] == 0:
+        # Alignment Weights
+        aligner.match_score = 2.5
+        aligner.mismatch_score = -1
+        aligner.gap_score = -1.5
+        aligner.extend_gap_score = -0.5
+        # Perform alignment
+        # When an alignment conforms to standard of at least one of the last 3 aa's of the V segment included in align
+        good = False
+        if len(end) > 7:
+            overlap = (len(end) * -1) + 5  # Will decrease overlap if amino acids don't align properly (add from len)
+        else:
+            overlap = (len(end) * -1)  # If short CDR provided
+        while not good:
+            temp_align = aligner.align(front[overlap:], end)
+            # Reference first alignment
+            align_ = temp_align[0]
+            # Collect alignment info
+            front_seq = temp_align.alignment.format().split("\n")[0]
+            pairs_info = temp_align.alignment.format().split("\n")[1]
+            end_seq = temp_align.alignment.format().split("\n")[2]
+            if verbose and not silent:
+                print("\n" + front_seq)
+                print(pairs_info)
+                print(end_seq + "\n")
+            # If last match is within the range needed
+            if end_seq[0] == " " and front_seq[0] != " ":
                 best_align = []
-                score = temp_align[0][2]
-                best_align.append(temp_align[0][0])  # Saves front chain
-                best_align.append(temp_align[0][1])  # Saves end chain
-                best_align.append(length)
+                best_align.append(overlap)  # overlap
+                best_align.append(temp_align.alignment.format().split("\n")[1].count(" "))  # Count start position
+                good = True
+            else:
+                if pairs_info.count("|") < 2:  # Only a single aa match - force append CDR3 and warn
+                    best_align = "BAD"
+                    good = True
+                    if not silent:
+                        print("Poor alignment possible: " + clone_id)
+                elif len(front_seq) != 2:  # Bump overlap (trim front_seq) by one if not a good alignment
+                    overlap += 1
+                    if verbose and not silent:
+                        full_terminal_text = "========================================================================"\
+                                             "======================================================="
+                        print(full_terminal_text)
     elif part == "J":
         offset = 6  # Helps with alignments to avoid too spaced out alignment
-        temp_align = pairwise2.align.localms(front[(len(end) - offset) * -1:], end, 2, -1, -1, -0.5
-                                             , one_alignment_only=True, penalize_extend_when_opening=False)
-        best_align = [temp_align[0][0], temp_align[0][1], temp_align[0][4]]  # Start seq, end seq, end position
+        # Alignment Weights
+        aligner.match_score = 2
+        aligner.mismatch_score = -1
+        aligner.gap_score = -1
+        aligner.extend_gap_score = -0.5
+        # Perform alignment
+        temp_align = aligner.align(front[(len(end) - offset) * -1:], end)
+        align_ = temp_align[0]  # Reference first align
+        # Collect alignment info to print
+        front_seq = temp_align.alignment.format().split("\n")[0]
+        pairs_info = temp_align.alignment.format().split("\n")[1]
+        end_seq = temp_align.alignment.format().split("\n")[2]
+        if verbose and not silent:
+            print("\n" + front_seq)
+            print(pairs_info)
+            print(end_seq + "\n")
+        # Collected needed information from alignment
+        start_seq = temp_align.alignment.format().split("\n")[0]
+        end_seq = temp_align.alignment.format().split("\n")[2]
+        end_pos = len(temp_align.alignment.format().split("\n")[1])
+        best_align = [start_seq, end_seq, end_pos]
     if part == "V":
-        if score == -1:  # When score is below 0
-            output = str(front + end)
-            return output
-        elif best_align[0][:best_align[2]] == best_align[1][:best_align[2]]:  # When overlap is not trimming either seq.
-            output = str(front[:best_align[2] * -1] + end)
-            return output
-        else:  # When score is above 0
-            par_seq = if_gap(best_align[0], end, part, 0)
-            output = front[:best_align[2] * -1] + par_seq
-            return output
+        if best_align != "BAD":
+            end_front = len(front) + best_align[0] + best_align[1]
+            output = front[:end_front] + end
+        else:
+            output = front + end
+        return output
     elif part == "J":  # If joining region overlap
-        output = front + best_align[1][best_align[2]:]
+        output = front + best_align[1][best_align[2]:]  # Overlaps front with remainder of best_align end seq
         return output
 
 
@@ -260,7 +325,8 @@ def create_constant_dic(organism):
 # Output: Table with clone id, AV, CDR3a, AJ, BV, CDR3b, BJ, full alpha seq, full beta seq (csv)
 def make_info_table(tcr_dic, file_in="translated_seq.csv"):
     with open(file_in, "w") as f:  # Open file, name is set by default but can be changed
-        f.write("clone ID,TRAV,CDR3 Alpha,TRAJ,TRBV,CDR3 Beta,TRBJ,ALPHA,BETA\n")  # Header
+        # Header
+        f.write("clone ID,TRAV,CDR3 Alpha,TRAJ,TRBV,CDR3 Beta,TRBJ,TRAV_seq,TRAJ_seq,TRBV_seq,TRBJ_seq,ALPHA,BETA\n")
         for each in tcr_dic:  # Loop through each clone ID
             info = tcr_dic[each][2:]
             chains = tcr_dic[each][:2]
@@ -272,19 +338,26 @@ def make_info_table(tcr_dic, file_in="translated_seq.csv"):
 #   alpha_file - name of alpha chain file
 #   beta_file - name of beta chain file
 #   tcr_dic - dictionary of all tcrs
+#   character_list - list of characters to not include in fasta header id
 # Output:
 #   alpha_file - outputted fasta file for alpha chains
 #   beta_file - outputted fasta file for beta chains
-def make_fasta_files(alpha_file, beta_file, tcr_dic):
+def make_fasta_files(alpha_file, beta_file, tcr_dic, character_list):
     with open(alpha_file, "w") as file_a:
         with open(beta_file, "w") as file_b:
             for clone_id in tcr_dic:
+                clone_id_print = clone_id
+                # Remove characters not allowed in clone_id
+                if character_list != "":
+                    for char in character_list.split(","):
+                        if char in clone_id:
+                            clone_id_print = clone_id.replace(char, "")
                 tcr_alpha_chain = tcr_dic[clone_id][0]
                 tcr_beta_chain = tcr_dic[clone_id][1]
                 count_1 = 1
                 count_2 = 1
                 if tcr_alpha_chain != '':
-                    file_a.write('>' + clone_id + "\n")
+                    file_a.write('>' + clone_id_print + "\n")
                     for aa in tcr_alpha_chain:
                         if count_1 % 81 != 0:
                             file_a.write(aa)
@@ -294,7 +367,7 @@ def make_fasta_files(alpha_file, beta_file, tcr_dic):
                             count_1 = 2
                     file_a.write('\n')
                 if tcr_beta_chain != '':
-                    file_b.write('>' + clone_id + '\n')
+                    file_b.write('>' + clone_id_print + '\n')
                     for aa in tcr_beta_chain:
                         if count_2 % 81 != 0:
                             file_b.write(aa)
@@ -315,21 +388,31 @@ def parse_args():
     parser.add_argument("-f", "--fasta", help="(Output) Fasta file format of results", default=False,
                         action="store_true")
     parser.add_argument("-i", "--information", help="(Output) Creates information table of constructed TCR seq."
-                        , default=False , action="store_true")
+                        , default=True, action="store_true")
     parser.add_argument("--genefamily", help="Replacement gene family segment file", default="family_seq.fasta"
                         , type=str)
     parser.add_argument("-c", "--columns",
                         help="Positions of gene segments: Clone ID,AV,CDR3a,AJ,BV,CDR3b,BJ | Can exclude Clone ID",
-                        default="3,4,5,7,8,9,11", type=str)
+                        default="0,1,2,3,4,5,6", type=str)  # Our data 3,4,5,7,8,9,11
     parser.add_argument("-a", "--append", help="Append each chain with constant region", default=False,
                         action="store_true")
     parser.add_argument("-o", "--organism", help="Updated Organism",
                         default="homo sapiens", type=str)
+    parser.add_argument("--omission", help="Characters to avoid in header id for fasta file submission | comma sep.",
+                        type=str, default="")
+    parser.add_argument("-v", "--verbose", help="Show alignments being produced", default=False, action="store_true")
+    parser.add_argument("--silent", help="Mute even poor alignments", default=False, action="store_true")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()  # collect arguments
+    if args.verbose:
+        global verbose
+        verbose = True
+    if args.silent:
+        global silent
+        silent = True
     # create dictionary for program to pull gene family information from
     create_gene_dic(args.genefamily, args.organism)
     # create tcr dictionary containing each segment
@@ -339,10 +422,10 @@ def main():
     if args.append:
         tcr_seq_dic = append_constant(tcr_seq_dic, args.organism)
     # Create information table with full TCR sequences
-    if args.information:
-        make_info_table(tcr_seq_dic, ".".join(args.single_cell_table.split(".")[:-1]) + "_Results.csv")
     if args.fasta:
-        make_fasta_files("alpha.fasta", "beta.fasta", tcr_seq_dic)
+        make_fasta_files("alpha.fasta", "beta.fasta", tcr_seq_dic, args.omission)
+    elif args.information:
+        make_info_table(tcr_seq_dic, ".".join(args.single_cell_table.split(".")[:-1]) + "_Results.csv")
 
 
 if __name__ == '__main__':

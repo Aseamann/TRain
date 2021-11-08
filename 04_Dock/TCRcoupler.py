@@ -526,7 +526,8 @@ def make_refine_file(pdb, runs, cpus, native):
     with open("flag_local_refine", "w") as refine_file:
         refine_file.write("-in:file:s output_files/dock/" + pdb + "\n")
         if native != "...":
-            refine_file.write("-in:file:native " + "/".join(program_dir.split("/")[:-2]) + native + pdb[:4] + ".pdb" + "\n")
+            refine_file.write("-in:file:native " + "/".join(program_dir.split("/")[:-2]) + native + pdb[:4] + ".pdb"
+                              + "\n")
         refine_file.write("#SBATCH --ntasks=" + str(runs) + "\n")
         refine_file.write("-nstruct " + str(cpus) + " \n\n")
         refine_file.write("-docking_local_refine\n")

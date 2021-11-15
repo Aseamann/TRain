@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
 # Version: 1.02
-# Last Updated: August 29th, 2021
+# Last Updated: November 8th, 2021
 
 import argparse
 import subprocess
@@ -16,7 +16,7 @@ from shutil import copyfile
 
 version = "linuxgccrelease"
 program_dir = os.getcwd()
-rosetta_dir = "/mnt/fast/Programs/rosetta_src_2020.08.61146_bundle/"
+rosetta_dir = ""
 
 
 ####################
@@ -203,7 +203,8 @@ def make_docking_file(pdb, runs, cpus, native):
     with open("flag_local_docking", "w") as dock_file:
         dock_file.write("-in:file:s output_files/relax/" + pdb + "\n")
         if native != "...":
-            dock_file.write("-in:file:native " + "/".join(program_dir.split("/")[:-2]) + native + pdb[:4] + ".pdb" + "\n")
+            dock_file.write("-in:file:native " + "/".join(program_dir.split("/")[:-2]) + native + pdb[:4] + ".pdb"
+                            + "\n")
         dock_file.write("-unboundrot output_files/relax/" + pdb + "\n\n")
         dock_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
         dock_file.write("-nstruct " + str(runs) + " \n\n")
@@ -460,7 +461,8 @@ def make_flex_docking_file(pdb, runs, cpus, native):
     with open("flag_ensemble_docking", "w") as dock_file:
         dock_file.write("-in:file:s output_files/prepack/" + pdb[:-4] + "_prepack_0001.pdb" + "\n")
         if native != "...":
-            dock_file.write("-in:file:native " + "/".join(program_dir.split("/")[:-2]) + native + pdb[:4] + ".pdb" + "\n")
+            dock_file.write("-in:file:native " + "/".join(program_dir.split("/")[:-2]) + native + pdb[:4] + ".pdb"
+                            + "\n")
         dock_file.write("-unboundrot " + pdb + "\n\n")
         dock_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
         dock_file.write("-nstruct " + str(runs) + " \n\n")
@@ -470,7 +472,8 @@ def make_flex_docking_file(pdb, runs, cpus, native):
         dock_file.write("-ensemble1 pmhc_ensemblelist\n-ensemble2 tcr_ensemblelist\n\n")
         dock_file.write("-ex1\n-ex2aro\n\n")
         dock_file.write("-docking_low_res_score motif_dock_score\n")
-        dock_file.write("-mh:path:scores_BB_BB " + rosetta_dir + "/main/database/additional_protocol_data/motif_dock/xh_16_\n")
+        dock_file.write("-mh:path:scores_BB_BB " + rosetta_dir
+                        + "/main/database/additional_protocol_data/motif_dock/xh_16_\n")
         dock_file.write("-mh:score:use_ss1 false\n")
         dock_file.write("-mh:score:use_ss2 false\n")
         dock_file.write("-mh:score:use_aa1 true\n")
@@ -600,7 +603,7 @@ def choose_par(args, run_list):
 
 
 # Method: prep_dirs()
-# Goal: Prepare individual folders for each pdb un
+# Goal: Prepare individual folders for each pdb run
 def prep_dirs(main_dir, folder, pdb):
     new_folder = main_dir + "/Runs/" + pdb.split(".")[0] + "/"
     os.mkdir(new_folder)  # Make pdb run file
@@ -619,8 +622,6 @@ def prep_dirs(main_dir, folder, pdb):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("pdb", help="PDB file or folder of PDBs for docking", type=str)
-    parser.add_argument("-i", "--initialize", help="Location of rosetta directory", type=str,
-                        default="default")
     parser.add_argument("-l", "--linux", help="Changes to linux runnable program", default=True,
                         dest='linux', action='store_true')
     parser.add_argument("-m", "--mac", help="Changes to mac runnable program", default=False,
@@ -654,31 +655,27 @@ def parse_args():
 def main():
     args = parse_args()
     # Initializing rosetta folder
-    if args.initialize != "default":
-        with open(__file__, "r") as f:
-            lines = f.read().split('\n')
-            with open(__file__, "w") as f1:
-                for line in lines:
-                    if line.startswith('rosetta_dir = "'):
-                        line = line.split('"')[0] + '"' + args.initialize + '"'
-                    f1.write(line + "\n")
+    global rosetta_dir
+    with open("config.ini", "r") as f1:  # Grab webdriver location
+        for line in f1:
+            if line[:10] == "rosetta_loc":
+                rosetta_dir = line[:-1].split("=")[1][1:-1]
+    if os.path.isfile(args.pdb):
+        # Initialize version of Linux or Mac release
+        global version
+        if args.mac:
+            version = "macosclangrelease"
+        elif args.linux:
+            version = "linuxgccrelease"
+        # Initialize flexible or rigid docking & determine if a batch of pdbs or a single file
+        run_info = prep_numbers(args.cores, args.flexible, args.relax, args.docking, args.refine, args.pmhc,
+                                args.xml, args.bb, args.fast)
+        if args.flexible:
+            run_flexible(args.pdb, os.path.isfile(args.pdb), run_info, args.native)
+        elif args.rigid:
+            run_rigid(args.pdb, os.path.isfile(args.pdb), run_info, args.native)
     else:
-        if os.path.isfile(args.pdb):
-            # Initialize version of Linux or Mac release
-            global version
-            if args.mac:
-                version = "macosclangrelease"
-            elif args.linux:
-                version = "linuxgccrelease"
-            # Initialize flexible or rigid docking & determine if a batch of pdbs or a single file
-            run_info = prep_numbers(args.cores, args.flexible, args.relax, args.docking, args.refine, args.pmhc,
-                                    args.xml, args.bb, args.fast)
-            if args.flexible:
-                run_flexible(args.pdb, os.path.isfile(args.pdb), run_info, args.native)
-            elif args.rigid:
-                run_rigid(args.pdb, os.path.isfile(args.pdb), run_info, args.native)
-        else:
-            run_multi(args)
+        run_multi(args)
 
 
 if __name__ == '__main__':

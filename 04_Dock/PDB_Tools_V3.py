@@ -589,13 +589,17 @@ class PdbTools3:
     # Creates a new PDB file with information for only the peptide of the original PDB file
     # Doesn't update numbering
     # Assumes Alpha and Beta are D & E
-    def split_tcr(self, update_name="..."):
+    def split_tcr(self, update_name="...", assume_rename=False):
         if update_name == "...":
             tcr = 'tcr.pdb'  # name of resulting file
         else:
             tcr = update_name
-        alpha = self.get_tcr_chains()["ALPHA"]
-        beta = self.get_tcr_chains()["BETA"]
+        if assume_rename:  # If trimmed and renamed
+            alpha = "D"
+            beta = "E"
+        else:
+            alpha = self.get_tcr_chains()["ALPHA"]
+            beta = self.get_tcr_chains()["BETA"]
         output = []
         with open(self.file_name) as f:
             for line in f:
@@ -929,6 +933,11 @@ class PdbTools3:
                             skip_switch = True
         # print(len(ref_atoms))
         # print(len(target_atoms))
+        # Truncate long list
+        if len(ref_atoms) > len(target_atoms):
+            ref_atoms = ref_atoms[:len(target_atoms)]
+        elif len(target_atoms) > len(ref_atoms):
+            target_atoms = target_atoms[:len(ref_atoms)]
         # Superimposing
         super_imposer = Bio.PDB.Superimposer()
         super_imposer.set_atoms(ref_atoms, target_atoms)
@@ -1026,6 +1035,7 @@ class PdbTools3:
         # self.set_file_name(new_name)
         # print(self.get_center())
 
+    # Joins together two PDB files by appending first PDBs atoms to second PDBs atoms
     def join(self, pdb_1, pdb_2, new_name):
         atoms_lines = []
         pdbs = [pdb_1, pdb_2]
@@ -1038,6 +1048,34 @@ class PdbTools3:
             for line in atoms_lines:
                 f2.write(line)
         return new_name
+
+    # Update the chain order. Must send in a list with identical number of chains
+    def reorder_chains(self, chain_order):
+        current = self.get_chains()
+        chain_info = {}
+        new_order = []
+        for chain in current:
+            chain_info[chain] = self.get_atoms_on_chain(chain)
+        for chain in chain_order:
+            for atom in chain_info[chain]:
+                new_order.append(atom)
+        with open(self.file_name, "w") as f1:
+            f1.write(self.rebuild_atom_line(new_order))
+
+    # Update the labels based on submitted chain dictionary
+    # Ex of dictionary: {'A':'D', 'B':'E'}  A gets replaced with D and B gets replaced with E
+    def update_label(self, label_dic):
+        current = self.get_chains()
+        chain_info = {}
+        new_order = []
+        for chain in current:
+            chain_info[chain] = self.get_atoms_on_chain(chain)
+        for chain in chain_info:
+            for atom in chain_info[chain]:
+                atom['chain_id'] = label_dic[chain]
+                new_order.append(atom)
+        with open(self.file_name, 'w') as f1:
+            f1.write(self.rebuild_atom_line(new_order))
 
 
 def parse_args():
@@ -1107,9 +1145,10 @@ def main():
         if os.path.isdir(args.pdb):
             os.mkdir("Results")
             for each in os.listdir(args.pdb):
-                print(each.split(".")[0])
-                pdb.set_file_name(args.pdb + "/" + each)
-                pdb.center("Results/" + each.split(".")[0] + "_center.pdb")
+                if each.endswith(".pdb"):
+                    print(each.split(".")[0])
+                    pdb.set_file_name(args.pdb + "/" + each)
+                    pdb.center("Results/" + each.split(".")[0] + "_center.pdb")
         else:
             pdb.center()
 

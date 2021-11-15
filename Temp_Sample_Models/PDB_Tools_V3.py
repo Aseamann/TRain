@@ -929,6 +929,11 @@ class PdbTools3:
                             skip_switch = True
         # print(len(ref_atoms))
         # print(len(target_atoms))
+        # Truncate long list
+        if len(ref_atoms) > len(target_atoms):
+            ref_atoms = ref_atoms[:len(target_atoms)]
+        elif len(target_atoms) > len(ref_atoms):
+            target_atoms = target_atoms[:len(ref_atoms)]
         # Superimposing
         super_imposer = Bio.PDB.Superimposer()
         super_imposer.set_atoms(ref_atoms, target_atoms)
@@ -958,11 +963,15 @@ class PdbTools3:
                     round(statistics.mean(cords_dic['Z']), 3)]
         return centroid
 
-    def center(self, new_name_in="..."):
+    def center(self, new_name_in="...", chains_in="..."):
         atoms = []
         full_atom = []
         # Collect atom information from PDB
-        for chain in self.get_chains():
+        if chains_in != "...":
+            chain_list = list(chains_in)
+        else:
+            chain_list = self.get_chains()
+        for chain in chain_list:
             chain_atoms = self.get_atoms_on_chain(chain)
             for atom in chain_atoms:
                 # Append atom_line with full atom information
@@ -1026,6 +1035,7 @@ class PdbTools3:
         # self.set_file_name(new_name)
         # print(self.get_center())
 
+    # Joins together two PDB files by appending first PDBs atoms to second PDBs atoms
     def join(self, pdb_1, pdb_2, new_name):
         atoms_lines = []
         pdbs = [pdb_1, pdb_2]
@@ -1038,6 +1048,34 @@ class PdbTools3:
             for line in atoms_lines:
                 f2.write(line)
         return new_name
+
+    # Update the chain order. Must send in a list with identical number of chains
+    def reorder_chains(self, chain_order):
+        current = self.get_chains()
+        chain_info = {}
+        new_order = []
+        for chain in current:
+            chain_info[chain] = self.get_atoms_on_chain(chain)
+        for chain in chain_order:
+            for atom in chain_info[chain]:
+                new_order.append(atom)
+        with open(self.file_name, "w") as f1:
+            f1.write(self.rebuild_atom_line(new_order))
+
+    # Update the labels based on submitted chain dictionary
+    # Ex of dictionary: {'A':'D', 'B':'E'}  A gets replaced with D and B gets replaced with E
+    def update_label(self, label_dic):
+        current = self.get_chains()
+        chain_info = {}
+        new_order = []
+        for chain in current:
+            chain_info[chain] = self.get_atoms_on_chain(chain)
+        for chain in chain_info:
+            for atom in chain_info[chain]:
+                atom['chain_id'] = label_dic[chain]
+                new_order.append(atom)
+        with open(self.file_name, 'w') as f1:
+            f1.write(self.rebuild_atom_line(new_order))
 
 
 def parse_args():

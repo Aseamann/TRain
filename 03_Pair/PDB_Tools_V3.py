@@ -963,11 +963,15 @@ class PdbTools3:
                     round(statistics.mean(cords_dic['Z']), 3)]
         return centroid
 
-    def center(self, new_name_in="..."):
+    def center(self, new_name_in="...", chains_in="..."):
         atoms = []
         full_atom = []
         # Collect atom information from PDB
-        for chain in self.get_chains():
+        if chains_in != "...":
+            chain_list = list(chains_in)
+        else:
+            chain_list = self.get_chains()
+        for chain in chain_list:
             chain_atoms = self.get_atoms_on_chain(chain)
             for atom in chain_atoms:
                 # Append atom_line with full atom information

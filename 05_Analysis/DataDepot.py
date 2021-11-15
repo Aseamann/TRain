@@ -1,60 +1,25 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
-# Version: 0.30
-# Last Updated: October 22, 2021
+# Version: 0.4
+# Last Updated: November 10th, 2021
 import argparse
 import os
 import pandas as pd
 from matplotlib import pyplot as plt
 import seaborn as sns
 import subprocess
+from PDB_Tools_V3 import PdbTools3
+
+
+#################
+#    Global     #
+#################
+rosetta_dir = ""
 
 
 #################
 #    Methods    #
 #################
-def density(df_0):
-    df = pd.read_csv(df_0, index_col=0, sep="\t")
-    ax_1 = sns.displot(df, x="I_sc", hue="TCR", kind="kde", fill=True)
-    ax_1.set(title="TCR I_sc Density")
-    df_2 = []
-    for tcr in df["TCR"]:
-        df_2.append(df[(df.tcr == tcr) and (df.pmhc == tcr)])
-    plt.plot(df_2)
-    plt.show()
-    # for tcr in df["TCR"].unique():
-    #     # df_1 = df.drop(df.index[df['TCR'] != tcr], inplace=False)
-    #     # df["I_sc"] = -1 * df["I_sc"]
-    #     # ax = sns.displot(df_1, x="I_sc", hue="pMHC", element="step", binwidth=2)
-    #     ax.set(title=tcr)
-    #     plt.show()
-
-
-def strip_plot_isc(df_0):
-    score_df = pd.read_csv(df_0, index_col=0, sep="\t").sort_values('TCR')
-    ebv_df = score_df.query("pMHC_Ant == 'EBV'")
-    m1_df = score_df.query("pMHC_Ant == 'M1'")
-    tax_df = score_df.query("pMHC_Ant == 'Tax'")
-    sns.stripplot(x="TCR", y="I_sc", data=score_df, hue="pMHC_Ant").set(title="TCR I_sc Strip Plot")
-    sns.lineplot(x="TCR", y="I_sc", data=m1_df)
-    sns.lineplot(x="TCR", y="I_sc", data=ebv_df)
-    sns.lineplot(x="TCR", y="I_sc", data=tax_df)
-    plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", borderaxespad=0)
-    plt.show()
-
-
-def strip_plot_ab(df_0):
-    score_df = pd.read_csv(df_0, index_col=0, sep="\t").sort_values("TCR")
-    temp_ab = []
-    for index, row in score_df.iterrows():
-        temp_ab.append(float(row['alpha']) + float(row['beta']))
-    score_df['total'] = temp_ab
-    print(score_df)
-    sns.stripplot(x="TCR", y="total", data=score_df, hue="pMHC_Ant").set(title="TCR Total Score Strip Plot")
-    plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", borderaxespad=0)
-    plt.show()
-
-
 def box_plot_isc(df_0):
     score_df = pd.read_csv(df_0, index_col=0, sep="\t").sort_values('TCR')
     m1_df = score_df.query("TCR_Ant  == 'M1'")
@@ -70,7 +35,124 @@ def box_plot_isc(df_0):
         plt.show()
 
 
-def i_v_rmsd(score_file):
+#################
+#   AB usage    #
+#################
+# Global
+verbose = False
+
+
+# Manages program
+def run_interface(tcr_dir, program, chains):
+    global verbose
+    tool = PdbTools3()  # Initialize PDB tools
+    write_flag(chains)  # Creates Alpha and Beta flag files
+    results = {}  # Results dictionary that will be used to create output ex. PDBid: {alpha: [scores], beta: [scores]}
+    # Score = dG_separated
+    # Loops through each PDB in submitted directory
+    if os.path.isdir(tcr_dir):
+        pdbs = os.listdir(tcr_dir)
+    else:
+        pdbs = [tcr_dir]
+    for pdb in pdbs:
+        if pdb.endswith(".pdb"):
+            if len(pdbs) > 1:  # If not a single pdb
+                file_name = tcr_dir + "/" + pdb
+                tool.set_file_name(file_name)
+            else:
+                file_name = pdb
+                tool.set_file_name(file_name)
+            results[pdb] = {"ALPHA": -1.0, "BETA": -1.0}
+            tool.mute_aa(0, 1000, "B")  # muting the beta chain
+            # Alpha
+            if verbose:
+                try:  # If not mpi
+                    subprocess.run([program, "-s", file_name, "@ALPHA_flags"])  # Runs InterfaceAnalyzer
+                except:
+                    print("Running with MPI")
+                else:  # If mpi
+                    program_split = ".".join(program.split(".")[:-1])
+                    program_split += ["mpi", program.split(".")[-1]]
+                    program = ".".join(program_split)
+                    subprocess.run([program, "-s", file_name, "@ALPHA_flags"])  # Runs InterfaceAnalyzer
+            else:
+                try:  # If not mpi
+                    subprocess.run([program, "-s", file_name, "@ALPHA_flags"],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # Runs InterfaceAnalyzer
+                except:
+                    print("Running with MPI")
+                else:  # If mpi
+                    program_split = ".".join(program.split(".")[:-1])
+                    program_split += ["mpi", program.split(".")[-1]]
+                    program = ".".join(program_split)
+                    subprocess.run([program, "-s", file_name, "@ALPHA_flags"],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # Runs InterfaceAnalyzer
+            tool.unmute_aa(0, 1000, "B")  # un-muting beta chain
+            tool.mute_aa(0, 1000, "A")  # muting the alpha chain
+            # Beta
+            if verbose:
+                subprocess.run([program, "-s", file_name, "@BETA_flags"])  # Runs InterfaceAnalyzer
+            else:
+                subprocess.run([program, "-s", file_name, "@BETA_flags"],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # Runs InterfaceAnalyzer
+            tool.unmute_aa(0, 1000, "A")  # un-muting alpha chain
+            for score_file in os.listdir(os.getcwd()):  # Collecting scores
+                if score_file.endswith(".sc"):
+                    # Input to collect scores from output files
+                    express = "tr -s ' ' < " + score_file + " | tail -1 | cut -f6 -d' ' | tr ' ' '\t'"
+                    if score_file == "tcr_ALPHA.sc":
+                        temp_score = subprocess.run(express, shell=True, stdout=subprocess.PIPE)  # Runs expression
+                        results[pdb]["ALPHA"] = float(temp_score.stdout.decode('utf-8')[1:])  # Saves score to results
+                        os.remove(score_file)  # Clears file before next run
+                    if score_file == "tcr_BETA.sc":
+                        temp_score = subprocess.run(express, shell=True, stdout=subprocess.PIPE)  # Runs expression
+                        results[pdb]["BETA"] = float(temp_score.stdout.decode('utf-8')[1:])
+                        os.remove(score_file)  # Clears file before next run
+    os.remove(os.getcwd() + "/ALPHA_flags")  # Remove alpha flag file
+    os.remove(os.getcwd() + "/BETA_flags")  # Remove beta flag file
+    write_results(results)
+
+
+# Writing to output file
+def write_results(results):
+    global verbose
+    with open("AB_Usage.csv", "w") as f:
+        f.write("PDB,ALPHA,BETA\n")
+        if verbose:
+            print("PDB\tALPHA\tBETA")
+        for pdb_id in results:
+            f.write(pdb_id + "," + str(results[pdb_id]["ALPHA"]) + "," + str(results[pdb_id]["BETA"]) + "\n")
+            if verbose:  # Writes to stdout if verbose
+                print(pdb_id + "\t" + str(results[pdb_id]["ALPHA"]) + "\t" + str(results[pdb_id]["BETA"]))
+
+
+# Creates flag files for InterfaceAnalyzer
+def write_flag(chains):
+    keys = ["ALPHA", "BETA"]  # Allows for loop of alpha beta
+    for chain in keys:
+        chain_id = chains[chain] + "_" + chains["MHC"] + chains["peptide"]  # generates chain_id: ex. AC_D
+        with open(chain + "_flags", "w") as f:
+            f.write("#specific options for InterfaceAnalyzer\n")
+            # f.write("-interface " + chain_id + "\n")  # For specific MHC + Peptide vs a or b
+            f.write("-fixedchains " + chains["MHC"] + " " + chains["peptide"] + "\n")  # Holds peptide to MHC
+            f.write("-compute_packstat true #Rosetta's packstat calculation (slow)\n")
+            f.write("-tracer_data_print false #make a score file instead of stdout\n")
+            f.write("-out:file:score_only tcr_" + chain + ".sc  #output file\n")
+            f.write("-pack_input false #will not relax the input interface residues\n")  # May want to change
+            f.write("-pack_separated false #will also pack monomers to calculated dG bin\n")
+            f.write("-add_regular_scores_to_scorefile true #will run the rest of rosetta's score func, score12\n\n")
+            f.write("#helpful tweeks\n")
+            f.write("-atomic_burial_cutoff 0.01 #This is set to help rosetta identify buried polar atoms properly\n")
+            f.write("-sasa_calculator_probe_radius 1.4 #This is the default water probe radius for SASA calculations"\
+                    ", sometimes lowering the radius helps rosetta more accurately find buried polar atoms\n")
+            f.write("-pose_metrics::interface_cutoff 8.0 #This defines how far away a CBeta atom can be from the"\
+                    " other chain to be considered an interface residue")
+
+
+#################
+#     Native    #
+#################
+def single_graph(score_file, x, y):
     content = subprocess.run("tr -s ' ' < " + score_file + " | tr ' ' ','", shell=True, stdout=subprocess.PIPE)
     if "/" in score_file:  # Detect if not in current dir
         dir_file = "/".join(score_file.split("/")[:-1]) + "/"
@@ -81,46 +163,15 @@ def i_v_rmsd(score_file):
         for line in content.stdout.decode('utf-8').split('\n')[1:]:
             f.write(line + '\n')
     score_df = pd.read_csv(dir_file + new_name, index_col=0)
-    sns.relplot(data=score_df, x="rms", y="I_sc")
+    sns.relplot(data=score_df, x=x, y=y)
     plt.show()
+    os.remove(dir_file + new_name)
 
 
-def t_v_rmsd(score_file):
-    content = subprocess.run("tr -s ' ' < " + score_file + " | tr ' ' ','", shell=True, stdout=subprocess.PIPE)
-    if "/" in score_file:  # Detect if not in current dir
-        dir_file = "/".join(score_file.split("/")[:-1]) + "/"
-    else:
-        dir_file = ""
-    new_name = score_file.split("/")[-1].split(".")[0] + ".csv"
-    with open(dir_file + new_name, "w") as f:
-        for line in content.stdout.decode('utf-8').split('\n')[1:]:
-            f.write(line + '\n')
-    score_df = pd.read_csv(dir_file + new_name, index_col=0)
-    sns.relplot(data=score_df, x="rms", y="total_score")
-    plt.show()
-
-
-def mds_v_rmsd(score_file):
-    content = subprocess.run("tr -s ' ' < " + score_file + " | tr ' ' ','", shell=True, stdout=subprocess.PIPE)
-    if "/" in score_file:  # Detect if not in current dir
-        dir_file = "/".join(score_file.split("/")[:-1]) + "/"
-    else:
-        dir_file = ""
-    new_name = score_file.split("/")[-1].split(".")[0] + ".csv"
-    with open(dir_file + new_name, "w") as f:
-        for line in content.stdout.decode('utf-8').split('\n')[1:]:
-            f.write(line + '\n')
-    score_df = pd.read_csv(dir_file + new_name, index_col=0)
-    sns.relplot(data=score_df, x="rms", y="motif_dock")
-    plt.show()
-
-
-def multi_x_rmsd(dir_score_files, x):
-    compare = {"irmsd": "I_sc", "mdsrmsd": "motif_dock", "trmsd": "total_score"}
+def multi_graph(dir_score_files, x, y):
     all_file = os.getcwd() + "/" + dir_score_files + "/all.sc"
     print(all_file)
     header = False
-    current_file = ""
     with open(all_file, "w") as w1:  # Full .sc file
         file_location = os.getcwd() + "/" + dir_score_files  # Location of folder with full path
         for score_file in sorted(os.listdir(file_location)):  # Loop through each score file
@@ -142,10 +193,12 @@ def multi_x_rmsd(dir_score_files, x):
         for line in content.stdout.decode('utf-8').split('\n'):
             f.write(line + '\n')
     score_df = pd.read_csv(dir_score_files + "/" + new_name, index_col=0)
-    graph = sns.FacetGrid(score_df, col="file", hue="CAPRI_rank", col_wrap=4, palette="RdYlGn", xlim=(0, 200))
-    graph.map(sns.scatterplot, "cen_rms", compare[x])
+    graph = sns.FacetGrid(score_df, col="file", hue="CAPRI_rank", col_wrap=4, palette="RdYlGn")
+    graph.map(sns.scatterplot, x, y)
     graph.add_legend()
     plt.show()
+    os.remove(dir_score_files + "/" + "all.sc")
+    os.remove(dir_score_files + "/" + "all.csv")
 
 
 ###################
@@ -213,6 +266,7 @@ def make_peptide_table(aa_list, chain_list, csv_name, chain_in):
     for chain in chain_list:
         for each in chain_list[chain]:
             aa_info[each[0]] = each[1]
+    # Produce table
     with open(csv_name, "w") as t1:
         t1.write("Chain: " + chain_in + ",Interaction energy,Partner,CDR Region\n")
         for AA in aa_list:
@@ -222,8 +276,10 @@ def make_peptide_table(aa_list, chain_list, csv_name, chain_in):
                 else:
                     partner = each[0]
                 if partner[-1] == "D" or partner[-1] == "E":  # Only allows for TCR chains
+                    # Writing to file
                     output = aa_info[AA] + " " + str(int(AA[:-1]) - int(first_aa[AA[-1]]) + 1) + "," + str(each[2]) \
                              + "," + aa_info[partner] + " " + partner[:-1] + "," + partner[-1] + "\n"
+                    # Writing CDR information
                     for cdr in cdr_info[partner[-1]]:
                         if int(partner[:-1]) in cdr_info[partner[-1]][cdr]:
                             output = output[:-3] + "," + cdr + "\n"
@@ -267,11 +323,11 @@ def heatmap_info(aa_list, chain_list, chain_in):
     return file_name
 
 
-def heatmap(info, remove_0):
+def heatmap(info, chain_in):
     # Read in csv
     df = pd.read_csv(info)
-    # Remove columns with only zero values
-    if remove_0:
+    # Remove columns with only zero values if MHC
+    if chain_in == "A":
         # df = df.loc[:, (df != 0).any(axis=0)]
         df = df[(df.sum(axis=1) != 0)]
     # Read in x and y axis labels
@@ -285,7 +341,10 @@ def heatmap(info, remove_0):
                      cmap=sns.cubehelix_palette(start=2, rot=0, reverse=True, dark=0, light=1, as_cmap=True),
                      annot=labels, annot_kws={"fontsize": 8, 'rotation': 90}, fmt='')
     plt.xlabel("TCR")
-    plt.ylabel("Peptide")
+    y_label = "Peptide"
+    if chain_in == "A":
+        y_label = "MHC"
+    plt.ylabel(y_label)
     # Adding in additional tick marks to account for labeling CDR regions
     # if not remove_0:
     ax2 = ax.twiny()
@@ -324,12 +383,69 @@ def heatmap(info, remove_0):
     plt.show()
 
 
-def interface_heatmap(interface_breakdown):
+def interface_heatmap(interface_breakdown, mhc):
+    # Changes to MHC chain if requested
+    chain_in = "C"
+    if mhc:
+        chain_in = "A"
     chain_list, inter_list = read_sheet(interface_breakdown)
-    aa_inter = get_peptide_inter(chain_list, inter_list, "A")
-    info = heatmap_info(aa_inter, chain_list, "A")
-    heatmap(info, True)
+    aa_inter = get_peptide_inter(chain_list, inter_list, chain_in)
+    info = heatmap_info(aa_inter, chain_list, chain_in)
+    heatmap(info, chain_in)
     os.remove(info)
+
+
+# Controller method to generate energy breakdown table
+def peptide_table(energry_breakdown, mhc):
+    # Changes to MHC chain if requested
+    chain_in = "C"
+    if mhc:
+        chain_in = "A"
+    chain_list, inter_list = read_sheet(energry_breakdown)
+    aa_inter = get_peptide_inter(chain_list, inter_list, chain_in)
+    make_peptide_table(aa_inter, chain_list, "output.csv", chain_in)
+
+
+# Convert tsv to csv
+def tsv_to_csv(tsv_in):
+    name_in = tsv_in
+    # Rename to same name but replace file extension to .csv
+    new_name = "".join(tsv_in.split(".")[:-1]) + ".csv"
+    # Convert .out (tsv) to .csv
+    cmd = "tr -s ' ' < " + name_in + " | tr ' ' ','"
+    new_file = subprocess.run([cmd], shell=True, stdout=subprocess.PIPE)
+    os.rename(name_in, new_name)
+    with open(new_name, "w") as f1:
+        f1.write(new_file.stdout.decode('utf-8')[1:])
+    return new_name
+
+
+# Run Rosetta Residue Energy Breakdown program if PDB submitted for heatmap or energy breakdown table
+def run_breakdown(pdb_in, mac):
+    # Update program location information
+    global rosetta_dir
+    version = "linuxgccrelease"
+    if mac:
+        version = "macosclangrelease"
+    program_location = "/main/source/bin/residue_energy_breakdown." + version
+    program = rosetta_dir + program_location
+    # In and out files
+    in_file = "-in:file:s " + pdb_in
+    file_name = "energy_breakdown.out"
+    out_file = "-out:file:silent " + file_name
+    # Run process
+    try:  # if not mpi
+        subprocess.run([program, in_file, out_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except:
+        print("Running in mpi")
+    else:
+        program_split = ".".join(program.split(".")[:-1])
+        program_split += ["mpi", program.split(".")[-1]]
+        program = ".".join(program_split)
+        subprocess.run([program, in_file, out_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # Convert tsv to csv
+    convert_out = tsv_to_csv(file_name)
+    return convert_out
 
 
 ####################
@@ -337,46 +453,70 @@ def interface_heatmap(interface_breakdown):
 ####################
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--data", help="TSV containing: pdb_name,TCR,pMHC,Total_Score,Alpha,Beta", type=str)
-    parser.add_argument("-s", "--strip", help="TSV containing: pdb_name,TCR,pMHC,Total_Score,Alpha,Beta")
-    parser.add_argument("-z", "--strip2", help="TSV containing: pdb_name,TCR,pMHC,Total_Score,Alpha,Beta"\
-                        " | produces strip plot based on alpha/beta score")
-    parser.add_argument("-b", "--box_tcr", help="Box plot of TCR in comparison of native to all others.",
-                        default=False, action="store_true")
-    parser.add_argument("-i", "--irmsd", help="Produces RMSD vs I_sc for inputted .sc file", type=str)
-    parser.add_argument("-m", "--mdsrmsd", help="Produces RMSD vs MDS for inputted .sc file", type=str)
-    parser.add_argument("-t", "--trmsd", help="Produces RMSD vs Total_score for inputted .sc file", type=str)
-    parser.add_argument("-a", "--allscore", help="True if wanting to compare a directory of .sc files",
-                        action="store_true", default=False)
-    parser.add_argument("--heatmap", help="Energy breakdown csv", type=str)
+    # parser.add_argument("-d", "--data", help="TSV containing: pdb_name,TCR,pMHC,Total_Score,Alpha,Beta", type=str)
+    # parser.add_argument("-s", "--strip", help="TSV containing: pdb_name,TCR,pMHC,Total_Score,Alpha,Beta")
+    # parser.add_argument("-z", "--strip2", help="TSV containing: pdb_name,TCR,pMHC,Total_Score,Alpha,Beta"\
+    #                     " | produces strip plot based on alpha/beta score")
+    # parser.add_argument("-b", "--box_tcr", help="Box plot of TCR in comparison of native to all others.",
+    #                     default=False, action="store_true")
+    parser.add_argument("--ab", help="(AB usage) Submit PDB for ab_usage interface scores")
+    parser.add_argument("-v", "--verbose", help="(AB usage) Verbose")
+    parser.add_argument("--sc", help="(Native) Score file produced from docking or refinement (or dir of .sc)")
+    parser.add_argument("-x", help="(Native) X axis for native structure comparison", type=str)
+    parser.add_argument("-y", help="(Native) Y axis for native structure comparison", type=str)
+    parser.add_argument("--heatmap", help="(EB) Energy breakdown csv", type=str)
+    parser.add_argument("--table", help="(EB) Energy breakdown csv", type=str)
+    parser.add_argument("--mhc", help="(EB) Changes energy breakdown to MHC versus peptide", action="store_true"
+                        , default=False)
+    parser.add_argument("--mac", help="(EB/AB) Changes rosetta from Linux to MacOS version", action="store_true",
+                        default=False)
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    if args.strip:
-        strip_plot_isc(args.strip)
-    if args.strip2:
-        strip_plot_ab(args.strip2)
-    if args.box_tcr:
-        box_plot_isc(args.data)
-    if args.irmsd:
-        if not args.allscore:
-            i_v_rmsd(args.irmsd)
+    # Initializing rosetta folder
+    global rosetta_dir
+    with open("config.ini", "r") as f1:  # Grab rosetta location
+        for line in f1:
+            if line[:11] == "rosetta_loc":
+                rosetta_dir = line[:-1].split("=")[1][1:-1]
+    # AB usage output
+    if args.ab:
+        global verbose
+        if args.verbose:
+            global verbose
+            verbose = True
+        version = "linuxgccrelease"
+        if args.mac:
+            version = "macosclangrelease"
+        program_location = rosetta_dir + "/main/source/bin/InterfaceAnalyzer." + version
+        # Set TCR chains based on user input
+        tcr_chains = {"MHC": "A", "peptide": "C",
+                      "ALPHA": "D", "BETA": "E"}
+        run_interface(args.ab, program_location, tcr_chains)
+    # Native structure comparison
+    if args.sc:
+        if not os.path.isdir(args.sc):
+            single_graph(args.sc, args.x, args.y)
         else:
-            multi_x_rmsd(args.irmsd, "irmsd")
-    if args.mdsrmsd:
-        if not args.allscore:
-            mds_v_rmsd(args.mdsrmsd)
-        else:
-            multi_x_rmsd(args.mdsrmsd, "mdsrmsd")
-    if args.trmsd:
-        if not args.allscore:
-            t_v_rmsd(args.trmsd)
-        else:
-            multi_x_rmsd(args.trmsd, "trmsd")
-    if args.heatmap:
-        interface_heatmap(args.heatmap)
+            multi_graph(args.sc, args.x, args.y)
+    # Heatmap or table routing
+    if args.heatmap or args.table:
+        if args.heatmap:  # Generate heatmap
+            breakdown_file = args.heatmap
+            if breakdown_file.endswith(".pdb"):  # Run energy breakdown if PDB submitted
+                breakdown_file = run_breakdown(args.heatmap, args.mac)
+            elif breakdown_file.endswith(".out") or breakdown_file.endswith(".tsv"):  # Convert to csv if tsv
+                breakdown_file = tsv_to_csv(breakdown_file)
+            interface_heatmap(breakdown_file, args.mhc)
+        if args.table:  # Generate breakdown table
+            breakdown_file = args.table
+            if breakdown_file.endswith(".pdb"):  # Run energy breakdown if PDB submitted
+                breakdown_file = run_breakdown(args.table, args.mac)
+            elif breakdown_file.endswith(".out") or breakdown_file.endswith(".tsv"):  # Convert to csv if tsv
+                breakdown_file = tsv_to_csv(breakdown_file)
+            peptide_table(breakdown_file, args.mhc)
 
 
 if __name__ == '__main__':

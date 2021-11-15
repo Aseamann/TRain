@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
-# Version: 0.1
-# Last Updated: November 8th, 2021
+# Version: 1.01
+# Last Updated: August 16th, 2021
 
 import argparse
 import subprocess
@@ -16,7 +16,7 @@ from shutil import copyfile
 
 version = "linuxgccrelease"
 program_dir = os.getcwd()
-rosetta_dir = ""
+rosetta_dir = "/mnt/fast/Programs/rosetta_src_2020.08.61146_bundle/"
 
 
 ####################
@@ -203,8 +203,7 @@ def make_docking_file(pdb, runs, cpus, native):
     with open("flag_local_docking", "w") as dock_file:
         dock_file.write("-in:file:s output_files/relax/" + pdb + "\n")
         if native != "...":
-            dock_file.write("-in:file:native " + "/".join(program_dir.split("/")[:-2]) + native + pdb[:4] + ".pdb"
-                            + "\n")
+            dock_file.write("-in:file:native " + "/".join(program_dir.split("/")[:-2]) + native + pdb[:4] + ".pdb" + "\n")
         dock_file.write("-unboundrot output_files/relax/" + pdb + "\n\n")
         dock_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
         dock_file.write("-nstruct " + str(runs) + " \n\n")
@@ -230,10 +229,6 @@ def run_flexible(pdb, single_file, run_info, native):
         print("Running relax...")
         start = time.time()
         flex_make_dirs()
-        split_tcr = ["python3", "PDB_Tools_V3.py", pdb, "--tcr_split"]  # Create tcr.pdb file
-        split_pmhc = ["python3", "PDB_Tools_V3.py", pdb, "--pmhc_split"]  # Create pmhc.pdb file
-        subprocess.run(split_tcr)
-        subprocess.run(split_pmhc)
         run_pmhc_relax("pmhc.pdb", run_info["pmhc"], run_info["cpu_pmhc"])
         run_xml_relax("tcr.pdb", run_info["xml"], run_info["cpu_xml"])
         run_bb_relax("tcr.pdb", run_info["bb"], run_info["cpu_bb"])
@@ -461,8 +456,7 @@ def make_flex_docking_file(pdb, runs, cpus, native):
     with open("flag_ensemble_docking", "w") as dock_file:
         dock_file.write("-in:file:s output_files/prepack/" + pdb[:-4] + "_prepack_0001.pdb" + "\n")
         if native != "...":
-            dock_file.write("-in:file:native " + "/".join(program_dir.split("/")[:-2]) + native + pdb[:4] + ".pdb"
-                            + "\n")
+            dock_file.write("-in:file:native " + "/".join(program_dir.split("/")[:-2]) + native + pdb[:4] + ".pdb" + "\n")
         dock_file.write("-unboundrot " + pdb + "\n\n")
         dock_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
         dock_file.write("-nstruct " + str(runs) + " \n\n")
@@ -472,8 +466,7 @@ def make_flex_docking_file(pdb, runs, cpus, native):
         dock_file.write("-ensemble1 pmhc_ensemblelist\n-ensemble2 tcr_ensemblelist\n\n")
         dock_file.write("-ex1\n-ex2aro\n\n")
         dock_file.write("-docking_low_res_score motif_dock_score\n")
-        dock_file.write("-mh:path:scores_BB_BB " + rosetta_dir
-                        + "/main/database/additional_protocol_data/motif_dock/xh_16_\n")
+        dock_file.write("-mh:path:scores_BB_BB " + rosetta_dir + "/main/database/additional_protocol_data/motif_dock/xh_16_\n")
         dock_file.write("-mh:score:use_ss1 false\n")
         dock_file.write("-mh:score:use_ss2 false\n")
         dock_file.write("-mh:score:use_aa1 true\n")
@@ -529,8 +522,7 @@ def make_refine_file(pdb, runs, cpus, native):
     with open("flag_local_refine", "w") as refine_file:
         refine_file.write("-in:file:s output_files/dock/" + pdb + "\n")
         if native != "...":
-            refine_file.write("-in:file:native " + "/".join(program_dir.split("/")[:-2]) + native + pdb[:4] + ".pdb"
-                              + "\n")
+            refine_file.write("-in:file:native " + "/".join(program_dir.split("/")[:-2]) + native + pdb[:4] + ".pdb" + "\n")
         refine_file.write("#SBATCH --ntasks=" + str(runs) + "\n")
         refine_file.write("-nstruct " + str(cpus) + " \n\n")
         refine_file.write("-docking_local_refine\n")
@@ -575,6 +567,11 @@ def run_multi(args):
         prep_dirs(main_dir, args.pdb, pdb)
         os.chdir(main_dir + "/Runs/" + pdb.split(".")[0] + "/")
         print(pdb)
+        # TODO: Handle both of these in the actual flexible docking sections
+        split_tcr = ["python3", "PDB_Tools_V3.py", pdb, "--tcr_split"]
+        split_pmhc = ["python3", "PDB_Tools_V3.py", pdb, "--pmhc_split"]
+        subprocess.run(split_tcr)
+        subprocess.run(split_pmhc)
         # Run Flex auto
         par_run = choose_par(args, ["python3", "TCRcoupler.py", pdb])
         print(par_run)
@@ -603,7 +600,7 @@ def choose_par(args, run_list):
 
 
 # Method: prep_dirs()
-# Goal: Prepare individual folders for each pdb run
+# Goal: Prepare individual folders for each pdb un
 def prep_dirs(main_dir, folder, pdb):
     new_folder = main_dir + "/Runs/" + pdb.split(".")[0] + "/"
     os.mkdir(new_folder)  # Make pdb run file
@@ -622,6 +619,8 @@ def prep_dirs(main_dir, folder, pdb):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("pdb", help="PDB file or folder of PDBs for docking", type=str)
+    parser.add_argument("-i", "--initialize", help="Location of rosetta directory", type=str,
+                        default="default")
     parser.add_argument("-l", "--linux", help="Changes to linux runnable program", default=True,
                         dest='linux', action='store_true')
     parser.add_argument("-m", "--mac", help="Changes to mac runnable program", default=False,
@@ -646,7 +645,7 @@ def parse_args():
                         type=int)
     parser.add_argument("-e", "--refine", help="(Both) Number of refinement runs done, post dock", default=100,
                         type=int)
-    parser.add_argument("-n", "--native", help="Native structure folder to run optional comparison to crystal" \
+    parser.add_argument("-n", "--native", help="Native structure's folder to run optional comparison to crystal" \
                                                "structure, ensure '/', pdbs have to be in folder", type=str,
                                                default="...")
     return parser.parse_args()
@@ -655,27 +654,31 @@ def parse_args():
 def main():
     args = parse_args()
     # Initializing rosetta folder
-    global rosetta_dir
-    with open("config.ini", "r") as f1:  # Grab rosetta location
-        for line in f1:
-            if line[:11] == "rosetta_loc":
-                rosetta_dir = line[:-1].split("=")[1][1:-1]
-    if os.path.isfile(args.pdb):
-        # Initialize version of Linux or Mac release
-        global version
-        if args.mac:
-            version = "macosclangrelease"
-        elif args.linux:
-            version = "linuxgccrelease"
-        # Initialize flexible or rigid docking & determine if a batch of pdbs or a single file
-        run_info = prep_numbers(args.cores, args.flexible, args.relax, args.docking, args.refine, args.pmhc,
-                                args.xml, args.bb, args.fast)
-        if args.flexible:
-            run_flexible(args.pdb, os.path.isfile(args.pdb), run_info, args.native)
-        elif args.rigid:
-            run_rigid(args.pdb, os.path.isfile(args.pdb), run_info, args.native)
+    if args.initialize != "default":
+        with open(__file__, "r") as f:
+            lines = f.read().split('\n')
+            with open(__file__, "w") as f1:
+                for line in lines:
+                    if line.startswith('rosetta_dir = "'):
+                        line = line.split('"')[0] + '"' + args.initialize + '"'
+                    f1.write(line + "\n")
     else:
-        run_multi(args)
+        if os.path.isfile(args.pdb):
+            # Initialize version of Linux or Mac release
+            global version
+            if args.mac:
+                version = "macosclangrelease"
+            elif args.linux:
+                version = "linuxgccrelease"
+            # Initialize flexible or rigid docking & determine if a batch of pdbs or a single file
+            run_info = prep_numbers(args.cores, args.flexible, args.relax, args.docking, args.refine, args.pmhc,
+                                    args.xml, args.bb, args.fast)
+            if args.flexible:
+                run_flexible(args.pdb, os.path.isfile(args.pdb), run_info, args.native)
+            elif args.rigid:
+                run_rigid(args.pdb, os.path.isfile(args.pdb), run_info, args.native)
+        else:
+            run_multi(args)
 
 
 if __name__ == '__main__':

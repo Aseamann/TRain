@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
-# Version: 1.00
-# Last Updated: October 18th, 2021
+# Version: 0.1
+# Last Updated: November 15th, 2021
 import argparse
 import statistics
 import numpy as np
@@ -589,13 +589,17 @@ class PdbTools3:
     # Creates a new PDB file with information for only the peptide of the original PDB file
     # Doesn't update numbering
     # Assumes Alpha and Beta are D & E
-    def split_tcr(self, update_name="..."):
+    def split_tcr(self, update_name="...", assume_rename=False):
         if update_name == "...":
             tcr = 'tcr.pdb'  # name of resulting file
         else:
             tcr = update_name
-        alpha = self.get_tcr_chains()["ALPHA"]
-        beta = self.get_tcr_chains()["BETA"]
+        if assume_rename:  # If trimmed and renamed
+            alpha = "D"
+            beta = "E"
+        else:
+            alpha = self.get_tcr_chains()["ALPHA"]
+            beta = self.get_tcr_chains()["BETA"]
         output = []
         with open(self.file_name) as f:
             for line in f:
@@ -963,15 +967,11 @@ class PdbTools3:
                     round(statistics.mean(cords_dic['Z']), 3)]
         return centroid
 
-    def center(self, new_name_in="...", chains_in="..."):
+    def center(self, new_name_in="..."):
         atoms = []
         full_atom = []
         # Collect atom information from PDB
-        if chains_in != "...":
-            chain_list = list(chains_in)
-        else:
-            chain_list = self.get_chains()
-        for chain in chain_list:
+        for chain in self.get_chains():
             chain_atoms = self.get_atoms_on_chain(chain)
             for atom in chain_atoms:
                 # Append atom_line with full atom information

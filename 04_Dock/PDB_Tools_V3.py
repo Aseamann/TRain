@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
-# Version: 1.00
-# Last Updated: October 18th, 2021
+# Version: 0.1
+# Last Updated: November 15th, 2021
 import argparse
 import statistics
 import numpy as np

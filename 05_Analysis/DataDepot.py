@@ -1,6 +1,6 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
-# Version: 0.4
+# Version: 0.1
 # Last Updated: November 10th, 2021
 import argparse
 import os

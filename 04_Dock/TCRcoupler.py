@@ -461,8 +461,7 @@ def make_flex_docking_file(pdb, runs, cpus, native):
     with open("flag_ensemble_docking", "w") as dock_file:
         dock_file.write("-in:file:s output_files/prepack/" + pdb[:-4] + "_prepack_0001.pdb" + "\n")
         if native != "...":
-            dock_file.write("-in:file:native " + "/".join(program_dir.split("/")[:-2]) + native + pdb[:4] + ".pdb"
-                            + "\n")
+            dock_file.write("-in:file:native " + program_dir + "/" + native + "\n")
         dock_file.write("-unboundrot " + pdb + "\n\n")
         dock_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
         dock_file.write("-nstruct " + str(runs) + " \n\n")

@@ -535,6 +535,7 @@ def make_refine_file(pdb, runs, cpus, native):
         refine_file.write("-nstruct " + str(cpus) + " \n\n")
         refine_file.write("-docking_local_refine\n")
         refine_file.write("-use_input_sc\n\n")
+        refine_file.write("-partners AC_DE\n")
         refine_file.write("-ex1\n-ex2aro\n\n")
         refine_file.write("-out:file:fullatom\n")
         refine_file.write("-out:path:all output_files/refine\n")

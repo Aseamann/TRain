@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
-# Version: 0.1
-# Last Updated: November 15th, 2021
+# Version: 0.1.1
+# Last Updated: November 16th, 2021
 import argparse
 import statistics
 import numpy as np
@@ -1090,6 +1090,8 @@ def parse_args():
     parser.add_argument("--peptide_split", help="Only provide MHC chains", default=False, action="store_true")
     parser.add_argument("--clean_tcr_split", help="Only provide TCR chains", default=False, action="store_true")
     parser.add_argument("--tcr_split", help="Only provides TCR chains", default=False, action="store_true")
+    parser.add_argument("--tcr_split_default", help="Only provides TCR chains, assumes DE", default=False,
+                        action="store_true")
     parser.add_argument("--pmhc_split", help="Only provides pMHC chains", default=False, action="store_true")
     parser.add_argument("--peptide", help="Get peptide chain", default=False, action="store_true")
     parser.add_argument("--mhc", help="Get mhc chain", default=False, action="store_true")
@@ -1123,6 +1125,8 @@ def main():
         pdb.split_p()
     if args.tcr_split:
         pdb.split_tcr()
+    if args.tcr_split_default:
+        pdb.split_tcr("...", True)
     if args.pmhc_split:
         pdb.split_pmhc()
     if args.renum:

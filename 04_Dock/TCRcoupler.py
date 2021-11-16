@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
 # Version: 0.1
-# Last Updated: November 8th, 2021
+# Last Updated: November 16th, 2021
 
 import argparse
 import subprocess
@@ -230,7 +230,7 @@ def run_flexible(pdb, single_file, run_info, native):
         print("Running relax...")
         start = time.time()
         flex_make_dirs()
-        split_tcr = ["python3", "PDB_Tools_V3.py", pdb, "--tcr_split"]  # Create tcr.pdb file
+        split_tcr = ["python3", "PDB_Tools_V3.py", pdb, "--tcr_split_default"]  # Create tcr.pdb file
         split_pmhc = ["python3", "PDB_Tools_V3.py", pdb, "--pmhc_split"]  # Create pmhc.pdb file
         subprocess.run(split_tcr)
         subprocess.run(split_pmhc)
@@ -334,7 +334,7 @@ def make_xml_file():
         f.write("\t<TASKOPERATIONS>\n\t</TASKOPERATIONS>\n\t<FILTERS>\n\t</FILTERS>\n")
         f.write("\t<MOVERS>\n\t\t<NormalModeRelax name=\"nma\" cartesian=\"true\" centroid=\"false\"\n")
         f.write("\t\t\tscorefxn=\"bn15_cart\" nmodes=\"5\" mix_modes=\"true\" pertscale=\"1.0\"\n")
-        f.write("\t\t\trandomselect=\"false\" relaxmode=\"relax\" nsample=\"120\"\n")
+        f.write("\t\t\trandomselect=\"false\" relaxmode=\"relax\" nsample=\"1\"\n")
         f.write("\t\t\tcartesian_minimize=\"false\" />\n\t</MOVERS>\n")
         f.write("\t<APPLY_TO_POSE>\n\t</APPLY_TO_POSE>\n")
         f.write("\t<PROTOCOLS>\n\t\t<Add mover=\"nma\" />\n\t</PROTOCOLS>\n")
@@ -373,7 +373,7 @@ def make_bb_relax_file(tcr, runs, cpus):
         relax_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
         relax_file.write("-nstruct " + str(runs) + " \n\n")
         relax_file.write("-backrub:ntrials 20000\n")
-        relax_file.write("-backrub:mc_kt 0.6\n\n")  # TODO: Is this supposed to be mc_kt?
+        relax_file.write("-backrub:mc_kt 0.6\n\n")
         relax_file.write("-out:path:all input_files/tcr_ensembles/\n")
         relax_file.write("-out:suffix _bb\n")
 

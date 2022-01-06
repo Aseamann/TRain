@@ -1,8 +1,9 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
 # Version: 0.1.1
-# Last Updated: November 16th, 2021
+# Last Updated: January 5th, 2022
 import argparse
+from math import sqrt, pow
 import statistics
 import numpy as np
 from sklearn.decomposition import PCA
@@ -823,6 +824,14 @@ class PdbTools3:
                 f1.write(line)
 
     # Superimpose two PDBs
+    # Goal: Read in target and reference structure, superimpose target to reference, save superimposed target structure
+    # Input:
+    #   ref_pdb: Location of reference PDB
+    #   target_order:
+    #   ref_order:
+    #   new_name_in: Optional name in for resulting superimposed positioning of target structure
+    # Output:
+    #   super_imposer.rms: RMSD value for all-atom RMSD
     def superimpose(self, ref_pdb, target_order, ref_order, new_name_in="..."):
         aligner = Align.PairwiseAligner()
         aligner.mode = 'local'
@@ -944,14 +953,99 @@ class PdbTools3:
         super_imposer.apply(target_model.get_atoms())
 
         # Save structure
-        print("RMSD: " + str(super_imposer.rms) + " Atoms Pulled: " + str(len(target_atoms)))
         io = Bio.PDB.PDBIO()
+        if __name__ == "__main__":
+            print("RMSD: " + str(super_imposer.rms) + " Atoms Pulled: " + str(len(target_atoms)))
         io.set_structure(target_structure)
         if new_name_in != "...":
             new_name = new_name_in
         else:
             new_name = self.get_file_name().split(".")[0] + "_aligned.pdb"
         io.save(new_name)
+        return super_imposer.rms
+
+    # Method: rmsd
+    # Goal: Calculate RMSD values between two PDBs - based on aligned aa's. Optional Carbon Alpha RMSD as well.
+    # Input:
+    #   ref_pdb: Reference PDB - can be same PDB as target
+    #   target_order: Target chains to consider for RMSD calculation - must be in same order
+    #   ref_order: Reference chains to consider for RMSD calculation - must be in same order
+    #   ca: True - only Alpha Carbon RMSD ; False - all-atom RMSD
+    # Output:
+    #   Calculated RMSD value
+    def rmsd(self, ref_pdb, target_order, ref_order, ca=False, mute=False):
+        target_atoms = {}  # chain: atoms
+        ref_atoms = {}  # chain: atoms
+        target_aa = {}  # chain: aa's
+        ref_aa = {}  # chain: aa's
+        rmsd_array = {"target": [], "ref": []}  # List of cords in order
+        current_pdb = self.get_file_name()
+        # Collect target atoms
+        for chain in target_order:
+            # Collect atoms - contains xyz and aa
+            target_atoms[chain] = self.get_atoms_on_chain(chain)
+            # Collect just residue list
+            target_aa[chain] = self.get_amino_acid_on_chain(chain)
+        # Collect reference atoms
+        self.set_file_name(ref_pdb)
+        for chain in ref_order:
+            # Collect atoms - contains xyz and aa
+            ref_atoms[chain] = self.get_atoms_on_chain(chain)
+            # Collect just residue list
+            ref_aa[chain] = self.get_amino_acid_on_chain(chain)
+        # Return to previous PDB
+        self.set_file_name(current_pdb)
+        # Run alignment
+        aligner = Align.PairwiseAligner()
+        aligner.mode = 'local'
+        aligner.gap_score = -100.00
+        aligner.match_score = 2.0
+        aligner.mismatch_score = 0.0
+        # Loop through each paired chain
+        for position in range(len(target_order)):
+            # run alignment
+            temp_align = aligner.align(target_aa[target_order[position]], ref_aa[ref_order[position]])
+            # Collect info needed - start and end positions of alignments ex. [0, 101]
+            target_chain_info = [temp_align[0].path[0][0], temp_align[0].path[1][0]]
+            ref_chain_info = [temp_align[0].path[0][1], temp_align[0].path[1][1]]
+            # Collect XYZ cords. for target
+            last_pos = 0
+            count = -1
+            for atom in target_atoms[target_order[position]]:
+                if atom["atom_id"] == "CA" or not ca:  # Check if not carbon alpha
+                    if atom["atom_id"][0] != "H":  # Skip hydrogen atoms added while docking
+                        if count == -1:
+                            last_pos = atom["comp_num"]
+                            count = 0
+                        if atom["comp_num"] != last_pos:
+                            count += 1
+                        if count in range(target_chain_info[0], target_chain_info[1]):
+                            rmsd_array["target"].append([atom["X"], atom["Y"], atom["Z"]])
+            # Collect XYZ cords. for ref
+            count = -1
+            for atom in ref_atoms[ref_order[position]]:
+                if atom["atom_id"] == "CA" or not ca:  # Check if not Carbon alpha
+                    if atom["atom_id"][0] != "H":  # Skip hydrogen atoms added while docking
+                        if count == -1:
+                            last_pos = atom["comp_num"]
+                            count = 0
+                        if atom["comp_num"] != last_pos:
+                            count += 1
+                        if count in range(ref_chain_info[0], ref_chain_info[1]):
+                            rmsd_array["ref"].append([atom["X"], atom["Y"], atom["Z"]])
+        # print(rmsd_array)
+        # print(len(rmsd_array["target"]))
+        # print(len(rmsd_array["ref"]))
+        # Calculate RMSD
+        sum_ = 0
+        for position in range(len(rmsd_array["target"])):
+            tar = rmsd_array["target"][position]
+            ref = rmsd_array["ref"][position]
+            sum_ += (pow(tar[0] - ref[0], 2) + pow(tar[1] - ref[1], 2) + pow(tar[2] - ref[2], 2))
+        rmsd = sqrt(sum_/len(rmsd_array["target"]))
+        if not mute:
+            print("RMSD: " + str(rmsd))
+        return rmsd
 
     def get_center(self):
         # Pull atoms from each chain: default_atoms {'CHAIN_ID': [list of atoms dictionaries]}
@@ -1056,7 +1150,7 @@ class PdbTools3:
         new_order = []
         for chain in current:
             chain_info[chain] = self.get_atoms_on_chain(chain)
-        for chain in chain_order:
+        for chain in list(chain_order):
             for atom in chain_info[chain]:
                 new_order.append(atom)
         with open(self.file_name, "w") as f1:
@@ -1102,9 +1196,13 @@ def parse_args():
     parser.add_argument("--clean_pdb", help="Updated to updated labeling and chain order", default=False,
                         action="store_true")
     parser.add_argument("--align", help="(Align) Superimpose this reference structure to submitted pdb", type=str)
-    parser.add_argument("--tar_chains", help="(Align) Chains from target to match with reference", type=str)
-    parser.add_argument("--ref_chains", help="(Align) Chains from reference to match with target", type=str)
+    parser.add_argument("--rmsd", help="(rmsd) Calculate RMSD of all-atoms or Carbon alpha", type=str)
+    parser.add_argument("--carbon", help="(rmsd) Change to carbon alpha RMSD calculation", action="store_true",
+                        default=False)
+    parser.add_argument("--tar_chains", help="(Align|rmsd) Chains from target to match with reference", type=str)
+    parser.add_argument("--ref_chains", help="(Align|rmsd) Chains from reference to match with target", type=str)
     parser.add_argument("--center", help="Center TCR to cord. 0,0,0", action="store_true", default=False)
+    parser.add_argument("--reorder", help="Reorder chains based on string provided (case sensitive)", type=str)
     return parser.parse_args()
 
 
@@ -1145,6 +1243,8 @@ def main():
         pdb.clean_pdb()
     if args.align:
         pdb.superimpose(args.align, args.tar_chains, args.ref_chains)
+    if args.rmsd:
+        pdb.rmsd(args.rmsd, args.tar_chains, args.ref_chains, args.carbon)
     if args.center:
         if os.path.isdir(args.pdb):
             os.mkdir("Results")
@@ -1155,6 +1255,8 @@ def main():
                     pdb.center("Results/" + each.split(".")[0] + "_center.pdb")
         else:
             pdb.center()
+    if args.reorder:
+        pdb.reorder_chains(args.reorder)
 
 
 if __name__ == '__main__':

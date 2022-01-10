@@ -66,35 +66,50 @@ def run_interface(tcr_dir, program, chains):
             tool.mute_aa(0, 1000, "B")  # muting the beta chain
             # Alpha
             if verbose:
-                try:  # If not mpi
+                if os.path.exists(program):
                     subprocess.run([program, "-s", file_name, "@ALPHA_flags"])  # Runs InterfaceAnalyzer
-                except:
-                    print("Running with MPI")
                 else:  # If mpi
-                    program_split = ".".join(program.split(".")[:-1])
+                    print("Running with MPI")
+                    program_split = program.split(".")[:-1]
                     program_split += ["mpi", program.split(".")[-1]]
                     program = ".".join(program_split)
                     subprocess.run([program, "-s", file_name, "@ALPHA_flags"])  # Runs InterfaceAnalyzer
             else:
-                try:  # If not mpi
+                if os.path.exists(program):
                     subprocess.run([program, "-s", file_name, "@ALPHA_flags"],
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # Runs InterfaceAnalyzer
-                except:
-                    print("Running with MPI")
                 else:  # If mpi
-                    program_split = ".".join(program.split(".")[:-1])
+                    print("Running with MPI")
+                    program_split = program.split(".")[:-1]
                     program_split += ["mpi", program.split(".")[-1]]
                     program = ".".join(program_split)
                     subprocess.run([program, "-s", file_name, "@ALPHA_flags"],
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # Runs InterfaceAnalyzer
+            print("Pass A")
             tool.unmute_aa(0, 1000, "B")  # un-muting beta chain
             tool.mute_aa(0, 1000, "A")  # muting the alpha chain
             # Beta
             if verbose:
-                subprocess.run([program, "-s", file_name, "@BETA_flags"])  # Runs InterfaceAnalyzer
+                if os.path.exists(program):  # If not MPI
+                    subprocess.run([program, "-s", file_name, "@BETA_flags"])  # Runs InterfaceAnalyzer
+                else:  # If mpi
+                    print("Running with MPI")
+                    program_split = program.split(".")[:-1]
+                    program_split += ["mpi", program.split(".")[-1]]
+                    program = ".".join(program_split)
+                    subprocess.run([program, "-s", file_name, "@BETA_flags"])  # Runs InterfaceAnalyzer
             else:
-                subprocess.run([program, "-s", file_name, "@BETA_flags"],
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # Runs InterfaceAnalyzer
+                if os.path.exists(program):  # If not MPI
+                    subprocess.run([program, "-s", file_name, "@BETA_flags"],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # Runs InterfaceAnalyzer
+                else:  # If mpi
+                    print("Running with MPI")
+                    program_split = program.split(".")[:-1]
+                    program_split += ["mpi", program.split(".")[-1]]
+                    program = ".".join(program_split)
+                    subprocess.run([program, "-s", file_name, "@BETA_flags"],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # Runs InterfaceAnalyzer
+            print("Pass B")
             tool.unmute_aa(0, 1000, "A")  # un-muting alpha chain
             for score_file in os.listdir(os.getcwd()):  # Collecting scores
                 if score_file.endswith(".sc"):
@@ -133,7 +148,7 @@ def write_flag(chains):
         chain_id = chains[chain] + "_" + chains["MHC"] + chains["peptide"]  # generates chain_id: ex. AC_D
         with open(chain + "_flags", "w") as f:
             f.write("#specific options for InterfaceAnalyzer\n")
-            # f.write("-interface " + chain_id + "\n")  # For specific MHC + Peptide vs a or b
+            f.write("-interface " + chain_id + "\n")  # For specific MHC + Peptide vs a or b
             f.write("-fixedchains " + chains["MHC"] + " " + chains["peptide"] + "\n")  # Holds peptide to MHC
             f.write("-compute_packstat true #Rosetta's packstat calculation (slow)\n")
             f.write("-tracer_data_print false #make a score file instead of stdout\n")
@@ -444,6 +459,8 @@ def run_breakdown(pdb_in, mac):
         program = ".".join(program_split)
         subprocess.run([program, in_file, out_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     # Convert tsv to csv
+    if "/" in pdb_in:
+        file_name = "/".join(pdb_in.split("/")[:-1]) + "/" + file_name
     convert_out = tsv_to_csv(file_name)
     return convert_out
 
@@ -460,7 +477,7 @@ def parse_args():
     # parser.add_argument("-b", "--box_tcr", help="Box plot of TCR in comparison of native to all others.",
     #                     default=False, action="store_true")
     parser.add_argument("--ab", help="(AB usage) Submit PDB for ab_usage interface scores")
-    parser.add_argument("-v", "--verbose", help="(AB usage) Verbose")
+    parser.add_argument("-v", "--verbose", help="(AB usage) Verbose", action="store_true", default=False)
     parser.add_argument("--sc", help="(Native) Score file produced from docking or refinement (or dir of .sc)")
     parser.add_argument("-x", help="(Native) X axis for native structure comparison", type=str)
     parser.add_argument("-y", help="(Native) Y axis for native structure comparison", type=str)

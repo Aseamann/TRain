@@ -954,7 +954,7 @@ class PdbTools3:
 
         # Save structure
         io = Bio.PDB.PDBIO()
-        if __name__ == "__main__":
+        if __name__ == "__main__":  # Dont run if being used as package
             print("RMSD: " + str(super_imposer.rms) + " Atoms Pulled: " + str(len(target_atoms)))
         io.set_structure(target_structure)
         if new_name_in != "...":

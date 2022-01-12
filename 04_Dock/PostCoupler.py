@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
 # Version: 0.1
-# Last Updated: November 8th, 2021
+# Last Updated: January 12th, 2022
 
 import argparse
 from Bio import pairwise2
@@ -180,8 +180,8 @@ def parse_args():
     parser.add_argument("-c", "--chains",
                         help="Chains that will be renumbered from ref.",
                         type=str)
-    parser.add_argument("--custom", help="Custom numbering for smallest chain | e.g. 9,11,2,4,5 | Has to match num of "\
-                        "aa to numbers provided", type=str,
+    parser.add_argument("-u", "--custom", help="Custom numbering for smallest chain | e.g. 9,11,2,4,5 | Has to match "\
+                        "num of aa to numbers provided", type=str,
                         default="...")
     return parser.parse_args()
 

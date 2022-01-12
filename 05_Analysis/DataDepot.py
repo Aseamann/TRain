@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
 # Version: 0.1
-# Last Updated: November 10th, 2021
+# Last Updated: January 12th, 2022
 import argparse
 import os
 import pandas as pd
@@ -470,22 +470,16 @@ def run_breakdown(pdb_in, mac):
 ####################
 def parse_args():
     parser = argparse.ArgumentParser()
-    # parser.add_argument("-d", "--data", help="TSV containing: pdb_name,TCR,pMHC,Total_Score,Alpha,Beta", type=str)
-    # parser.add_argument("-s", "--strip", help="TSV containing: pdb_name,TCR,pMHC,Total_Score,Alpha,Beta")
-    # parser.add_argument("-z", "--strip2", help="TSV containing: pdb_name,TCR,pMHC,Total_Score,Alpha,Beta"\
-    #                     " | produces strip plot based on alpha/beta score")
-    # parser.add_argument("-b", "--box_tcr", help="Box plot of TCR in comparison of native to all others.",
-    #                     default=False, action="store_true")
-    parser.add_argument("--ab", help="(AB usage) Submit PDB for ab_usage interface scores")
+    parser.add_argument("-a", "--ab", help="(AB usage) Submit PDB for ab_usage interface scores")
     parser.add_argument("-v", "--verbose", help="(AB usage) Verbose", action="store_true", default=False)
-    parser.add_argument("--sc", help="(Native) Score file produced from docking or refinement (or dir of .sc)")
-    parser.add_argument("-x", help="(Native) X axis for native structure comparison", type=str)
-    parser.add_argument("-y", help="(Native) Y axis for native structure comparison", type=str)
-    parser.add_argument("--heatmap", help="(EB) Energy breakdown csv", type=str)
-    parser.add_argument("--table", help="(EB) Energy breakdown csv", type=str)
-    parser.add_argument("--mhc", help="(EB) Changes energy breakdown to MHC versus peptide", action="store_true"
+    parser.add_argument("-s", "--sc", help="(Native) Score file produced from docking or refinement (or dir of .sc)")
+    parser.add_argument("-x", "--xaxis", help="(Native) X axis for native structure comparison", type=str)
+    parser.add_argument("-y", "--yaxis", help="(Native) Y axis for native structure comparison", type=str)
+    parser.add_argument("-e", "--heatmap", help="(EB) Energy breakdown csv", type=str)
+    parser.add_argument("-t", "--table", help="(EB) Energy breakdown csv", type=str)
+    parser.add_argument("-h", "--mhc", help="(EB) Changes energy breakdown to MHC versus peptide", action="store_true"
                         , default=False)
-    parser.add_argument("--mac", help="(EB/AB) Changes rosetta from Linux to MacOS version", action="store_true",
+    parser.add_argument("-m", "--mac", help="(EB/AB) Changes rosetta from Linux to MacOS version", action="store_true",
                         default=False)
     return parser.parse_args()
 

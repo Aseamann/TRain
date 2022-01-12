@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
 # Version: 0.1
-# Last Updated: January 5th, 2021
+# Last Updated: January 12th, 2022
 
 import argparse
 import subprocess
@@ -724,7 +724,7 @@ def parse_args():
                         dest='linux', action='store_true')
     parser.add_argument("-m", "--mac", help="Changes to mac runnable program", default=False,
                         dest='mac', action='store_true')
-    parser.add_argument("--nompi", help="Run Rosetta without mpi, not recommended for large runs", default=False,
+    parser.add_argument("-n", "--nompi", help="Run Rosetta without mpi, not recommended for large runs", default=False,
                         action="store_true")
     parser.add_argument("-r", "--rigid", help="Initializes flexible docking", default=True,
                         action="store_true")
@@ -734,9 +734,9 @@ def parse_args():
                         default=os.cpu_count(), type=int)
     parser.add_argument("-a", "--relax", help="(Rigid) Number of relax runs performed", default=100,
                         type=int)
-    parser.add_argument("-d", "--docking", help="(Both) Number of docking runs performed", default=10000,
+    parser.add_argument("-d", "--docking", help="(Both) Number of docking runs performed", default=20000,
                         type=int)
-    parser.add_argument("-p", "--pmhc", help="(Flex) Number of pmhc relax runs", default=100,
+    parser.add_argument("-h", "--pmhc", help="(Flex) Number of pmhc relax runs", default=100,
                         type=int)
     parser.add_argument("-x", "--xml", help="(Flex) Number of xml relax runs for TCR", default=40,
                         type=int)

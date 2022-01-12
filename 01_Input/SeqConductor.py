@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
-# Version: 0.1
-# Last Updated: November 1st, 2021
+# Version: 0.1.1
+# Last Updated: January 12th, 2022
 
 import argparse
 import pandas
@@ -324,6 +324,8 @@ def create_constant_dic(organism):
 #   file_in - optional file name for information table
 # Output: Table with clone id, AV, CDR3a, AJ, BV, CDR3b, BJ, full alpha seq, full beta seq (csv)
 def make_info_table(tcr_dic, file_in="translated_seq.csv"):
+    if "/" in file_in:
+        file_in = file_in.split("/")[-1]
     with open(file_in, "w") as f:  # Open file, name is set by default but can be changed
         # Header
         f.write("clone ID,TRAV,CDR3 Alpha,TRAJ,TRBV,CDR3 Beta,TRBJ,TRAV_seq,TRAJ_seq,TRBV_seq,TRBJ_seq,ALPHA,BETA\n")
@@ -387,21 +389,21 @@ def parse_args():
     parser.add_argument("-s", "--sheet", help="Sheet name in table", default="0", type=str)
     parser.add_argument("-f", "--fasta", help="(Output) Fasta file format of results", default=False,
                         action="store_true")
-    parser.add_argument("-i", "--information", help="(Output) Creates information table of constructed TCR seq."
+    parser.add_argument("-t", "--information", help="(Output) Creates information table of constructed TCR seq."
                         , default=True, action="store_true")
-    parser.add_argument("--genefamily", help="Replacement gene family segment file", default="family_seq.fasta"
+    parser.add_argument("-g", "--genefamily", help="Replacement gene family segment file", default="family_seq.fasta"
                         , type=str)
     parser.add_argument("-c", "--columns",
                         help="Positions of gene segments: Clone ID,AV,CDR3a,AJ,BV,CDR3b,BJ | Can exclude Clone ID",
                         default="0,1,2,3,4,5,6", type=str)  # Our data 3,4,5,7,8,9,11
     parser.add_argument("-a", "--append", help="Append each chain with constant region", default=False,
                         action="store_true")
-    parser.add_argument("-o", "--organism", help="Updated Organism",
+    parser.add_argument("-r", "--organism", help="Updated Organism",
                         default="homo sapiens", type=str)
-    parser.add_argument("--omission", help="Characters to avoid in header id for fasta file submission | comma sep.",
-                        type=str, default="")
+    parser.add_argument("-m", "--omission", help="Characters to avoid in header id for fasta file submission | comma"\
+                        "sep.", type=str, default="")
     parser.add_argument("-v", "--verbose", help="Show alignments being produced", default=False, action="store_true")
-    parser.add_argument("--silent", help="Mute even poor alignments", default=False, action="store_true")
+    parser.add_argument("-l", "--silent", help="Mute even poor alignments", default=False, action="store_true")
     return parser.parse_args()
 
 

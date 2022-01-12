@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
 # Version: 0.1
-# Last Updated: October 28th, 2021
+# Last Updated: January 12th, 2022
 import argparse
 from PDB_Tools_V3 import PdbTools3
 import os
@@ -101,14 +101,14 @@ def tcr_pmhc_pair(tcr_dir, pmhc_dir, tcr_multi, pmhc_multi, trim_a, trim_b, trim
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--tcr", help="TCR pdb file or folder of TCR PDBs", type=str, default="...")
-    parser.add_argument("-m", "--pmhc", help="pMHC pdb file or folder of pMHC PDBs", type=str, default="...")
+    parser.add_argument("-h", "--pmhc", help="pMHC pdb file or folder of pMHC PDBs", type=str, default="...")
     parser.add_argument("-p", "--pdbs", help="Submit folder of pdbs and all TCRs and pMHCs will be swapped", type=str,
                         default="...")
-    parser.add_argument("--trimA", help="Trim TCR alpha, needed if full crystal structure", action="store_true",
+    parser.add_argument("-a", "--trimA", help="Trim TCR alpha, needed if full crystal structure", action="store_true",
                         default=False)
-    parser.add_argument("--trimB", help="Trim TCR beta, needed if full crystal structure", action="store_true",
+    parser.add_argument("-b", "--trimB", help="Trim TCR beta, needed if full crystal structure", action="store_true",
                         default=False)
-    parser.add_argument("--trimM", help="Prevent trimming of MHC", action="store_true", default=False)
+    parser.add_argument("-m", "--trimM", help="Prevent trimming of MHC", action="store_true", default=False)
     return parser.parse_args()
 
 

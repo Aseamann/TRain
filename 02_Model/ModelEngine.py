@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
 # Version: 0.1
-# Last Updated: November 3rd, 2021
+# Last Updated: January 12th, 2022
 import argparse
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -253,7 +253,7 @@ def parse_args():
     parser.add_argument("-s", "--start", help="Optional starting position in fasta file. Provide header.", type=str,
                         default="...")
     parser.add_argument("-d", "--download", help="Download directory folder name", default="Models", type=str)
-    parser.add_argument("--long", help="Scalar for wait times for elements to appear and page to load", default=1.0,
+    parser.add_argument("-g", "--long", help="Scalar for wait times for elements to appear and page to load", default=1.0,
                         type=float)
     return parser.parse_args()
 

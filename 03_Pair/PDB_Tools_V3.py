@@ -1088,14 +1088,12 @@ class PdbTools3:
         # Determinate of components matrix - Corrects if determinate is negative
         determinate = np.linalg.det(transpose)
         if determinate < 0:
-            print("Determinate")
             for position in transpose:
                 position[0] = position[0] * -1
         # Rotate x-axis
         # Always have N-terminus in positive coordinates (Fixes flips on x-axis)
         test_x = np.matmul(new_array[-1], transpose)
         if test_x[1] < 0:
-            print("x-axis")
             r = Rotation.from_euler('x', 180, degrees=True)
             transpose = r.apply(transpose)
         # Rotate y-axis
@@ -1103,7 +1101,6 @@ class PdbTools3:
         # Determines by looking at last atom which should be on the Beta chain
         test_y = np.matmul(new_array[-1], transpose)
         if test_y[0] < 0:
-            print("Y-axis")
             r = Rotation.from_euler('y', 180, degrees=True)
             transpose = r.apply(transpose)
         # Multiply by EV

@@ -1,11 +1,12 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
 # Version: 0.1
-# Last Updated: November 14th, 2021
+# Last Updated: January 12th, 2022
 
 import argparse
 from PDB_Tools_V3 import PdbTools3
 import os
+from shutil import copyfile
 
 
 ####################
@@ -23,7 +24,9 @@ def main():
     if os.path.isdir(args.pdb):
         for pdb in sorted(os.listdir(os.getcwd() + "/" + args.pdb)):
             if pdb.endswith(".pdb"):
-                file_name = os.getcwd() + "/" + args.pdb + "/" + pdb
+                old_location = os.getcwd() + "/" + args.pdb + "/" + pdb
+                file_name = os.getcwd() + "/" + args.pdb + "/" + pdb.split(".")[0] + "_prep.pdb"
+                copyfile(old_location, file_name)
                 tool.set_file_name(file_name)
                 tool.clean_pdb()  # Updates to A, B, C, D, E format of PDB and removes any additional chains
                 print(tool.get_chains())
@@ -40,7 +43,9 @@ def main():
                 os.remove(tmp_tcr)
                 tool.renumber_docking()  # Update numbering of PDB to Rosetta standard
     else:
-        tool.set_file_name(args.pdb)
+        new_location = args.pdb.split(".")[0] + "_prep.pdb"
+        copyfile(args.pdb, new_location)
+        tool.set_file_name(new_location)
         tool.clean_pdb()  # Updates to A, B, C, D, E format of PDB and removes any additional chains
         tool.remove_chain("B")  # Remove B2M
         tool.trim_chain("D", 107)  # Trim Alpha at 107

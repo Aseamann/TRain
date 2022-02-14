@@ -101,8 +101,8 @@ def tcr_pmhc_pair(tcr_dir, pmhc_dir, tcr_multi, pmhc_multi, trim_a, trim_b, trim
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--tcr", help="TCR pdb file or folder of TCR PDBs", type=str, default="...")
-    parser.add_argument("-h", "--pmhc", help="pMHC pdb file or folder of pMHC PDBs", type=str, default="...")
-    parser.add_argument("-p", "--pdbs", help="Submit folder of pdbs and all TCRs and pMHCs will be swapped", type=str,
+    parser.add_argument("-p", "--pmhc", help="pMHC pdb file or folder of pMHC PDBs", type=str, default="...")
+    parser.add_argument("-d", "--pdbs", help="Submit folder of pdbs and all TCRs and pMHCs will be swapped", type=str,
                         default="...")
     parser.add_argument("-a", "--trimA", help="Trim TCR alpha, needed if full crystal structure", action="store_true",
                         default=False)

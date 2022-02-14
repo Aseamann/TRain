@@ -488,7 +488,7 @@ def main():
     args = parse_args()
     # Initializing rosetta folder
     global rosetta_dir
-    with open("config.ini", "r") as f1:  # Grab rosetta location
+    with open("../config.ini", "r") as f1:  # Grab rosetta location
         for line in f1:
             if line[:11] == "rosetta_loc":
                 rosetta_dir = line[:-1].split("=")[1][1:-1]

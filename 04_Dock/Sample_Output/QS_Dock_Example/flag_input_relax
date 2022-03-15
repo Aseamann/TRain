@@ -1,0 +1,16 @@
+-in:file:s ES179M1-01_5isz.pdb
+
+#SBATCH --ntasks=8
+-nstruct 10 
+
+#-relax:constrain_relax_to_start_coords
+#-relax:ramp_constraints false
+
+-ex1
+-ex2
+
+-use_input_sc
+-flip_HNQ
+-no_optH false
+
+-out:path:all output_files/relax

@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
 # Version: 0.2
-# Last Updated: January 19th, 2022
+# Last Updated: March 4th, 2022
 
 import argparse
 import subprocess
@@ -23,7 +23,7 @@ def read_fastas(alpha_in, beta_in, start_pdb):
             header = ""
             for line in f1:
                 if not start:  # Searching for first header
-                    if line.split(">")[:-1].split(">")[1] == header:
+                    if line[0] == ">" and line[1:-1] == str(start_pdb):
                         start = True
                 if start:  # Wont start until first header is found
                     if line[0] == ">":
@@ -45,7 +45,7 @@ def run_pars(pars, verbose, header):
     print("Done: " + header)
 
 
-def run_tcrmodel(tcr_seqs, rosetta_loc, refine, verbose, multi, cpu_count):
+def run_tcrmodel(tcr_seqs, rosetta_loc, refine, verbose, multi, cpu_count, cutoff):
     count = 0
     header_count = {}  # Count_id: Header
     with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
@@ -58,6 +58,8 @@ def run_tcrmodel(tcr_seqs, rosetta_loc, refine, verbose, multi, cpu_count):
             pars = [rosetta_loc, "-alpha", alpha_chain, "-beta", beta_chain, "-out::prefix", current_tmp]
             if refine:  # Additional CDR3 loop remodeling and refinement
                 pars += ["-remodel_tcr_cdr3_loops", "-refine_tcr_cdr3_loops"]
+            if cutoff != 100:
+                pars += ["-template_identity_cutoff", str(cutoff)]
             if not multi:
                 if verbose:
                     subprocess.run(pars)
@@ -92,6 +94,8 @@ def parse_args():
     parser.add_argument("-v", "--verbose", help="Readout output from TCRmodel", default=False, action="store_true")
     parser.add_argument("-m", "--multi", help="Split up load to multiple cores", action="store_true", default=False)
     parser.add_argument("-c", "--cpus", help="Number of CPUs allocated | default=all", type=int, default=os.cpu_count())
+    parser.add_argument("-u", "--cutoff", help="Sequence similarity cutoff for templates | default=100", type=int,
+                        default=100)
     return parser.parse_args()
 
 
@@ -120,7 +124,7 @@ def main():
     if not os.path.exists(new_dir):
         os.mkdir(new_dir)
     os.chdir(new_dir)
-    run_tcrmodel(tcr_seqs, rosetta_dir, args.refine, args.verbose, args.multi, args.cpus)
+    run_tcrmodel(tcr_seqs, rosetta_dir, args.refine, args.verbose, args.multi, args.cpus, args.cutoff)
 
 
 if __name__ == '__main__':

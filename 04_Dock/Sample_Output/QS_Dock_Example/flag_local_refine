@@ -1,0 +1,14 @@
+-in:file:s output_files/dock/ES179M1-01_5isz_0010_local_dock_0077.pdb
+#SBATCH --ntasks=10
+-nstruct 8 
+
+-docking_local_refine
+-use_input_sc
+
+-partners AC_DE
+-ex1
+-ex2aro
+
+-out:file:fullatom
+-out:path:all output_files/refine
+-out:suffix _local_refine

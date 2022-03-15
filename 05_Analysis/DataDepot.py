@@ -43,7 +43,8 @@ verbose = False
 
 
 # Manages program
-def run_interface(tcr_dir, program, chains):
+def run_interface(tcr_dir, chains):
+    global rosetta_dir
     global verbose
     tool = PdbTools3()  # Initialize PDB tools
     write_flag(chains)  # Creates Alpha and Beta flag files
@@ -66,49 +67,19 @@ def run_interface(tcr_dir, program, chains):
             tool.mute_aa(0, 1000, "B")  # muting the beta chain
             # Alpha
             if verbose:
-                if os.path.exists(program):
-                    subprocess.run([program, "-s", file_name, "@ALPHA_flags"])  # Runs InterfaceAnalyzer
-                else:  # If mpi
-                    print("Running with MPI")
-                    program_split = program.split(".")[:-1]
-                    program_split += ["mpi", program.split(".")[-1]]
-                    program = ".".join(program_split)
-                    subprocess.run([program, "-s", file_name, "@ALPHA_flags"])  # Runs InterfaceAnalyzer
+                subprocess.run([rosetta_dir, "-s", file_name, "@ALPHA_flags"])  # Runs InterfaceAnalyzer
             else:
-                if os.path.exists(program):
-                    subprocess.run([program, "-s", file_name, "@ALPHA_flags"],
-                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # Runs InterfaceAnalyzer
-                else:  # If mpi
-                    print("Running with MPI")
-                    program_split = program.split(".")[:-1]
-                    program_split += ["mpi", program.split(".")[-1]]
-                    program = ".".join(program_split)
-                    subprocess.run([program, "-s", file_name, "@ALPHA_flags"],
-                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # Runs InterfaceAnalyzer
+                subprocess.run([rosetta_dir, "-s", file_name, "@ALPHA_flags"],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # Runs InterfaceAnalyzer
             print("Pass A")
             tool.unmute_aa(0, 1000, "B")  # un-muting beta chain
             tool.mute_aa(0, 1000, "A")  # muting the alpha chain
             # Beta
             if verbose:
-                if os.path.exists(program):  # If not MPI
-                    subprocess.run([program, "-s", file_name, "@BETA_flags"])  # Runs InterfaceAnalyzer
-                else:  # If mpi
-                    print("Running with MPI")
-                    program_split = program.split(".")[:-1]
-                    program_split += ["mpi", program.split(".")[-1]]
-                    program = ".".join(program_split)
-                    subprocess.run([program, "-s", file_name, "@BETA_flags"])  # Runs InterfaceAnalyzer
+                subprocess.run([rosetta_dir, "-s", file_name, "@BETA_flags"])  # Runs InterfaceAnalyzer
             else:
-                if os.path.exists(program):  # If not MPI
-                    subprocess.run([program, "-s", file_name, "@BETA_flags"],
-                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # Runs InterfaceAnalyzer
-                else:  # If mpi
-                    print("Running with MPI")
-                    program_split = program.split(".")[:-1]
-                    program_split += ["mpi", program.split(".")[-1]]
-                    program = ".".join(program_split)
-                    subprocess.run([program, "-s", file_name, "@BETA_flags"],
-                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # Runs InterfaceAnalyzer
+                subprocess.run([rosetta_dir, "-s", file_name, "@BETA_flags"],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # Runs InterfaceAnalyzer
             print("Pass B")
             tool.unmute_aa(0, 1000, "A")  # un-muting alpha chain
             for score_file in os.listdir(os.getcwd()):  # Collecting scores
@@ -236,18 +207,19 @@ def read_sheet(sheet_in):
     for key, value in df.iterrows():
         values = value.array
         if values[7] != "onebody":
-            if values[3] in interactions.keys():
-                interactions[values[3]].append([values[3], values[6], values[27]])
-                if values[6] in interactions.keys():
-                    interactions[values[6]].append([values[3], values[6], values[27]])
+            if values[3][-1] != values[6][-1]:  # Ensure not capturing internal interactions NEW
+                if values[3] in interactions.keys():
+                    interactions[values[3]].append([values[3], values[6], values[27]])
+                    if values[6] in interactions.keys():
+                        interactions[values[6]].append([values[3], values[6], values[27]])
+                    else:
+                        interactions[values[6]] = [[values[3], values[6], values[27]]]
                 else:
-                    interactions[values[6]] = [[values[3], values[6], values[27]]]
-            else:
-                interactions[values[3]] = [[values[3], values[6], values[27]]]
-                if values[6] in interactions.keys():
-                    interactions[values[6]].append([values[3], values[6], values[27]])
-                else:
-                    interactions[values[6]] = [[values[3], values[6], values[27]]]
+                    interactions[values[3]] = [[values[3], values[6], values[27]]]
+                    if values[6] in interactions.keys():
+                        interactions[values[6]].append([values[3], values[6], values[27]])
+                    else:
+                        interactions[values[6]] = [[values[3], values[6], values[27]]]
         elif values[7] == "onebody":
             if values[3][-1] in chains.keys():
                 chains[values[3][-1]].append([values[3], values[4]])
@@ -266,10 +238,11 @@ def get_peptide_inter(chains, interactions, chain_in):
     for AA_Peptide in chains[chain_in]:
         peptide.append(AA_Peptide)
     for each in peptide:
-        if each[0] in aa_inter.keys():
-            aa_inter[each[0]].append(interactions[each[0]])
-        else:
-            aa_inter[each[0]] = [interactions[each[0]]]
+        if each[0] in interactions.keys():
+            if each[0] in aa_inter.keys():
+                aa_inter[each[0]].append(interactions[each[0]])
+            else:
+                aa_inter[each[0]] = [interactions[each[0]]]
     return aa_inter
 
 
@@ -426,8 +399,9 @@ def tsv_to_csv(tsv_in):
     name_in = tsv_in
     # Rename to same name but replace file extension to .csv
     new_name = "".join(tsv_in.split(".")[:-1]) + ".csv"
+    submit_name = name_in.replace(" ", "\\ ")
     # Convert .out (tsv) to .csv
-    cmd = "tr -s ' ' < " + name_in + " | tr ' ' ','"
+    cmd = "tr -s ' ' < " + submit_name + " | tr ' ' ','"
     new_file = subprocess.run([cmd], shell=True, stdout=subprocess.PIPE)
     os.rename(name_in, new_name)
     with open(new_name, "w") as f1:
@@ -436,33 +410,41 @@ def tsv_to_csv(tsv_in):
 
 
 # Run Rosetta Residue Energy Breakdown program if PDB submitted for heatmap or energy breakdown table
-def run_breakdown(pdb_in, mac):
+def run_breakdown(pdb_in):
     # Update program location information
     global rosetta_dir
-    version = "linuxgccrelease"
-    if mac:
-        version = "macosclangrelease"
-    program_location = "/main/source/bin/residue_energy_breakdown." + version
-    program = rosetta_dir + program_location
     # In and out files
     in_file = "-in:file:s " + pdb_in
     file_name = "energy_breakdown.out"
     out_file = "-out:file:silent " + file_name
     # Run process
-    try:  # if not mpi
-        subprocess.run([program, in_file, out_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except:
-        print("Running in mpi")
-    else:
-        program_split = ".".join(program.split(".")[:-1])
-        program_split += ["mpi", program.split(".")[-1]]
-        program = ".".join(program_split)
-        subprocess.run([program, in_file, out_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run([rosetta_dir, in_file, out_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     # Convert tsv to csv
-    if "/" in pdb_in:
-        file_name = "/".join(pdb_in.split("/")[:-1]) + "/" + file_name
+    file_name = os.getcwd() + "/" + file_name
     convert_out = tsv_to_csv(file_name)
     return convert_out
+
+
+# Determine what binaries are built for rosetta based on each program
+def rosetta_binary(program_in):
+    # Update program location information
+    global rosetta_dir
+    with open("../config.ini", "r") as f1:
+        for line in f1:
+            if line[:11] == "rosetta_loc":
+                rosetta_dir = line[:-1].split("=")[1][1:-1]
+    if not rosetta_dir.endswith("/"):
+        rosetta_dir += "/"
+    programs = []
+    for program in os.listdir(rosetta_dir + "main/source/bin"):
+        if program.startswith(program_in):
+            programs.append(program)
+    for program in sorted(programs, key=len):
+        if program.startswith(program_in + ".mpi"):
+            rosetta_dir += "main/source/bin/" + program
+            break
+        elif not program.startswith(program_in + ".default"):
+            rosetta_dir += "main/source/bin/" + program
 
 
 ####################
@@ -477,54 +459,45 @@ def parse_args():
     parser.add_argument("-y", "--yaxis", help="(Native) Y axis for native structure comparison", type=str)
     parser.add_argument("-e", "--heatmap", help="(EB) Energy breakdown csv", type=str)
     parser.add_argument("-t", "--table", help="(EB) Energy breakdown csv", type=str)
-    parser.add_argument("-h", "--mhc", help="(EB) Changes energy breakdown to MHC versus peptide", action="store_true"
+    parser.add_argument("-m", "--mhc", help="(EB) Changes energy breakdown to MHC versus peptide", action="store_true"
                         , default=False)
-    parser.add_argument("-m", "--mac", help="(EB/AB) Changes rosetta from Linux to MacOS version", action="store_true",
-                        default=False)
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    # Initializing rosetta folder
-    global rosetta_dir
-    with open("../config.ini", "r") as f1:  # Grab rosetta location
-        for line in f1:
-            if line[:11] == "rosetta_loc":
-                rosetta_dir = line[:-1].split("=")[1][1:-1]
     # AB usage output
     if args.ab:
         global verbose
         if args.verbose:
             global verbose
             verbose = True
-        version = "linuxgccrelease"
-        if args.mac:
-            version = "macosclangrelease"
-        program_location = rosetta_dir + "/main/source/bin/InterfaceAnalyzer." + version
+        rosetta_binary("InterfaceAnalyzer.")  # Set binary
         # Set TCR chains based on user input
         tcr_chains = {"MHC": "A", "peptide": "C",
                       "ALPHA": "D", "BETA": "E"}
-        run_interface(args.ab, program_location, tcr_chains)
+        run_interface(args.ab, tcr_chains)
     # Native structure comparison
     if args.sc:
         if not os.path.isdir(args.sc):
-            single_graph(args.sc, args.x, args.y)
+            single_graph(args.sc, args.xaxis, args.yaxis)
         else:
-            multi_graph(args.sc, args.x, args.y)
+            multi_graph(args.sc, args.xaxis, args.yaxis)
     # Heatmap or table routing
     if args.heatmap or args.table:
         if args.heatmap:  # Generate heatmap
             breakdown_file = args.heatmap
             if breakdown_file.endswith(".pdb"):  # Run energy breakdown if PDB submitted
-                breakdown_file = run_breakdown(args.heatmap, args.mac)
+                rosetta_binary("residue_energy_breakdown")  # Set binary
+                breakdown_file = run_breakdown(args.heatmap)
             elif breakdown_file.endswith(".out") or breakdown_file.endswith(".tsv"):  # Convert to csv if tsv
                 breakdown_file = tsv_to_csv(breakdown_file)
             interface_heatmap(breakdown_file, args.mhc)
         if args.table:  # Generate breakdown table
             breakdown_file = args.table
             if breakdown_file.endswith(".pdb"):  # Run energy breakdown if PDB submitted
-                breakdown_file = run_breakdown(args.table, args.mac)
+                rosetta_binary("residue_energy_breakdown")  # Set binary
+                breakdown_file = run_breakdown(args.table)
             elif breakdown_file.endswith(".out") or breakdown_file.endswith(".tsv"):  # Convert to csv if tsv
                 breakdown_file = tsv_to_csv(breakdown_file)
             peptide_table(breakdown_file, args.mhc)

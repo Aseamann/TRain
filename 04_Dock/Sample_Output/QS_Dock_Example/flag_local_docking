@@ -1,0 +1,14 @@
+-in:file:s output_files/relax/ES179M1-01_5isz_0010.pdb
+-unboundrot output_files/relax/ES179M1-01_5isz_0010.pdb
+
+#SBATCH --ntasks=8
+-nstruct 100 
+
+-partners AC_DE
+-dock_pert 3 8
+
+-ex1
+-ex2aro
+
+-out:path:all output_files/dock
+-out:suffix _local_dock

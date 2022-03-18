@@ -1189,7 +1189,7 @@ def parse_args():
     parser.add_argument("--pmhc", help="Get pmhc chains", default=False, action="store_true")
     parser.add_argument("--alpha", help="Get alpha chain", default=False, action="store_true")
     parser.add_argument("--beta", help="Get beta chain", default=False, action="store_true")
-    parser.add_argument("--resolution", help="Get resolution", default=False, action="store_true")
+    parser.add_argument("-r", "--resolution", help="Get resolution", default=False, action="store_true")
     parser.add_argument("--clean_pdb", help="Updated to updated labeling and chain order", default=False,
                         action="store_true")
     parser.add_argument("--align", help="(Align) Superimpose this reference structure to submitted pdb", type=str)

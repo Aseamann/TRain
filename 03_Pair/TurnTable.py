@@ -80,7 +80,9 @@ def tcr_pmhc_pair(tcr_dir, pmhc_dir, tcr_multi, pmhc_multi, trim_a, trim_b, trim
                            + "_tmpp.pdb"
             copyfile(pmhc_location, tmp_pmhc)
             tool.set_file_name(tmp_pmhc)
-            tool.clean_pdb()  # Updates to A, B, C, D, E format of PDB and removes any additional chains
+            num_chains = len(tool.get_chains())
+            if num_chains > 3:  # assume it's just the pMHC component
+                tool.clean_pdb()  # Updates to A, B, C, D, E format of PDB and removes any additional chains
             tool.split_pmhc(tmp_pmhc)  # Splits to a tmp file for peptide and mhc
             if not trim_m:  # Prevent trimming of MHC chain
                 tool.trim_chain("A", 181)  # Trim MHC at 181

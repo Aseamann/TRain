@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
 # Version: 0.1
-# Last Updated: January 12th, 2022
+# Last Updated: March 17th, 2022
 import argparse
 import os
 import pandas as pd
@@ -138,7 +138,7 @@ def write_flag(chains):
 #################
 #     Native    #
 #################
-def single_graph(score_file, x, y):
+def single_graph(score_file, x, y, ymax, ymin, xmax, xmin):
     content = subprocess.run("tr -s ' ' < " + score_file + " | tr ' ' ','", shell=True, stdout=subprocess.PIPE)
     if "/" in score_file:  # Detect if not in current dir
         dir_file = "/".join(score_file.split("/")[:-1]) + "/"
@@ -146,15 +146,33 @@ def single_graph(score_file, x, y):
         dir_file = ""
     new_name = score_file.split("/")[-1].split(".")[0] + ".csv"
     with open(dir_file + new_name, "w") as f:
+        first = True
+        line_count = 0
         for line in content.stdout.decode('utf-8').split('\n')[1:]:
-            f.write(line + '\n')
+            if first:
+                f.write(",".join(line.split(",")[1:]) + "\n")  # Remove SCORE: from first line
+                first = False
+            else:
+                f.write(str(line_count) + "," + ",".join(line.split(",")[1:]) + '\n')
+                line_count += 1
     score_df = pd.read_csv(dir_file + new_name, index_col=0)
-    sns.relplot(data=score_df, x=x, y=y)
+    if ymax:
+        score_df = score_df[score_df[y] <= ymax]
+    if ymin:
+        score_df = score_df[score_df[y] >= ymin]
+    if xmax:
+        score_df = score_df[score_df[x] <= xmax]
+    if xmin:
+        score_df = score_df[score_df[x] >= xmin]
+    score_df = score_df.sort_values(y)
+    colors = ["red"]  # Color lowest value
+    colors += ["blue"] * (score_df["description"].count() - 1)
+    sns.relplot(data=score_df, x=x, y=y, hue="description", palette=colors, legend=False)
     plt.show()
     os.remove(dir_file + new_name)
 
 
-def multi_graph(dir_score_files, x, y):
+def multi_graph(dir_score_files, x, y, ymax, ymin, xmax, xmin):
     all_file = os.getcwd() + "/" + dir_score_files + "/all.sc"
     print(all_file)
     header = False
@@ -176,10 +194,25 @@ def multi_graph(dir_score_files, x, y):
                              stdout=subprocess.PIPE)
     new_name = all_file.split("/")[-1].split(".")[0] + ".csv"
     with open(dir_score_files + "/" + new_name, "w") as f:
+        first = True
+        line_count = 0
         for line in content.stdout.decode('utf-8').split('\n'):
-            f.write(line + '\n')
+            if first:
+                f.write(",".join(line.split(",")[1:]) + "\n")  # Remove SCORE: from first line
+                first = False
+            else:
+                f.write(line + '\n')
     score_df = pd.read_csv(dir_score_files + "/" + new_name, index_col=0)
+    if ymax:
+        score_df = score_df[score_df[y] <= ymax]
+    if ymin:
+        score_df = score_df[score_df[y] >= ymin]
+    if xmax:
+        score_df = score_df[score_df[x] <= xmax]
+    if xmin:
+        score_df = score_df[score_df[x] >= xmin]
     graph = sns.FacetGrid(score_df, col="file", hue="CAPRI_rank", col_wrap=4, palette="RdYlGn")
+    # graph = sns.FacetGrid(score_df, col="file", hue="description", palette=colors, col_wrap=4)
     graph.map(sns.scatterplot, x, y)
     graph.add_legend()
     plt.show()
@@ -457,6 +490,10 @@ def parse_args():
     parser.add_argument("-s", "--sc", help="(Native) Score file produced from docking or refinement (or dir of .sc)")
     parser.add_argument("-x", "--xaxis", help="(Native) X axis for native structure comparison", type=str)
     parser.add_argument("-y", "--yaxis", help="(Native) Y axis for native structure comparison", type=str)
+    parser.add_argument("--ymax", help="(Native) Y axis value maximum", type=int)
+    parser.add_argument("--ymin", help="(Native) Y axis value minimum", type=int)
+    parser.add_argument("--xmax", help="(Native) X axis value maximum", type=int)
+    parser.add_argument("--xmin", help="(Native) X axis value minimum", type=int)
     parser.add_argument("-e", "--heatmap", help="(EB) Energy breakdown csv", type=str)
     parser.add_argument("-t", "--table", help="(EB) Energy breakdown csv", type=str)
     parser.add_argument("-m", "--mhc", help="(EB) Changes energy breakdown to MHC versus peptide", action="store_true"
@@ -480,9 +517,9 @@ def main():
     # Native structure comparison
     if args.sc:
         if not os.path.isdir(args.sc):
-            single_graph(args.sc, args.xaxis, args.yaxis)
+            single_graph(args.sc, args.xaxis, args.yaxis, args.ymax, args.ymin, args.xmax, args.xmin)
         else:
-            multi_graph(args.sc, args.xaxis, args.yaxis)
+            multi_graph(args.sc, args.xaxis, args.yaxis, args.ymax, args.ymin, args.xmax, args.xmin)
     # Heatmap or table routing
     if args.heatmap or args.table:
         if args.heatmap:  # Generate heatmap

@@ -14,21 +14,21 @@
 [COMPILER]: Clang version "9.0.0 (clang-900.0.39.2)"
 [STDLIB]: libc++ version 4000
 [START_OPTIONS]
- -alpha=AQSVAQPEDQVNVAEGNPLTVKCTYSVSGNPYLFWYVQYPNRGLQFLLKYITGDNLVKGSYGFEAEFNKSQTSFHLKKPSALVSDSALYFCAVRDFLLSGGYNKLIFGAGTRLAVHPIQNPDPAVYQLRDSKSSDKSVCLFTDFDSQTNVSQSKDSDVYITDKTVLDMRSMDFKSNSAVAWSNKSDFACANAFNNSIIPEDTFFPSP -beta=DVKVTQSSRYLVKRTGEKVFLECVQDMDHENMFWYRQDPGLGLRLIYFSYDVKMKEKGDIPEGYSVSREKKERFSLILESASTNQTSMYLCASSLIGRDEQFFGPGTRLTVLEDLNKVFPPEVAVFEPSEAEISHTQKATLVCLATGFFPDHVELSWWVNGKEVHSGVSTDPQPLKEQPALNDSRYCLSSRLRVSATFWQNPRNHFRCQVQFYGLSENDEWTQDRAKPVTQIVSAEAWGRA -out:prefix=tmp9_ -tcrmodel:template_identity_cutoff=98
+ -alpha=AQSVAQPEDQVNVAEGNPLTVKCTYSVSGNPYLFWYVQYPNRGLQFLLKYITGDNLVKGSYGFEAEFNKSQTSFHLKKPSALVSDSALYFCAVRDFLLSGGYNKLIFGAGTRLAVHPIQNPDPAVYQLRDSKSSDKSVCLFTDFDSQTNVSQSKDSDVYITDKTVLDMRSMDFKSNSAVAWSNKSDFACANAFNNSIIPEDTFFPSP -beta=DVKVTQSSRYLVKRTGEKVFLECVQDMDHENMFWYRQDPGLGLRLIYFSYDVKMKEKGDIPEGYSVSREKKERFSLILESASTNQTSMYLCASSLIGRDEQFFGPGTRLTVLEDLNKVFPPEVAVFEPSEAEISHTQKATLVCLATGFFPDHVELSWWVNGKEVHSGVSTDPQPLKEQPALNDSRYCLSSRLRVSATFWQNPRNHFRCQVQFYGLSENDEWTQDRAKPVTQIVSAEAWGRA -out:prefix=tmp9_ -tcrmodel:remodel_tcr_cdr3_loops -tcrmodel:refine_tcr_cdr3_loops
 
 [END_OPTIONS]
 
 [START_BACKTRACE]: RAW_LIBC
-0   tcrmodel.static.macosclangrelease   0x0000000111210c0f backtrace_string(int) + 79
-1   tcrmodel.static.macosclangrelease   0x0000000111210b4c utility::excn::Exception::Exception(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&) + 204
-2   tcrmodel.static.macosclangrelease   0x00000001112a9b7c utility::UtilityExitException::UtilityExitException(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&) + 108
-3   tcrmodel.static.macosclangrelease   0x00000001112a9ab7 utility::exit(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, int) + 55
-4   tcrmodel.static.macosclangrelease   0x000000010da829b5 protocols::tcr::orient_tcr_chain(core::pose::Pose&, core::pose::Pose const&, protocols::tcr::TCRseqInfo::tcrposi const&) + 1589
-5   tcrmodel.static.macosclangrelease   0x000000010da52da1 protocols::tcr::TCRmodel::build_graft_model() + 2273
-6   tcrmodel.static.macosclangrelease   0x000000010da5134c protocols::tcr::TCRmodel::make_model() + 44
-7   tcrmodel.static.macosclangrelease   0x000000010da4b715 protocols::tcr::TCRmodel::TCRmodel(std::__1::shared_ptr<protocols::tcr::TCRseqInfo>) + 1189
-8   tcrmodel.static.macosclangrelease   0x000000010d483359 main + 1609
-9   dyld                                0x000000011c5444fe start + 462
+0   tcrmodel.static.macosclangrelease   0x0000000113bbcc0f backtrace_string(int) + 79
+1   tcrmodel.static.macosclangrelease   0x0000000113bbcb4c utility::excn::Exception::Exception(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&) + 204
+2   tcrmodel.static.macosclangrelease   0x0000000113c55b7c utility::UtilityExitException::UtilityExitException(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&) + 108
+3   tcrmodel.static.macosclangrelease   0x0000000113c55ab7 utility::exit(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, int) + 55
+4   tcrmodel.static.macosclangrelease   0x000000011042e9b5 protocols::tcr::orient_tcr_chain(core::pose::Pose&, core::pose::Pose const&, protocols::tcr::TCRseqInfo::tcrposi const&) + 1589
+5   tcrmodel.static.macosclangrelease   0x00000001103feda1 protocols::tcr::TCRmodel::build_graft_model() + 2273
+6   tcrmodel.static.macosclangrelease   0x00000001103fd34c protocols::tcr::TCRmodel::make_model() + 44
+7   tcrmodel.static.macosclangrelease   0x00000001103f7715 protocols::tcr::TCRmodel::TCRmodel(std::__1::shared_ptr<protocols::tcr::TCRseqInfo>) + 1189
+8   tcrmodel.static.macosclangrelease   0x000000010fe2f359 main + 1609
+9   dyld                                0x000000011d56251e start + 462
 
 [END_BACKTRACE]
 
@@ -59,20 +59,20 @@ ERROR: Orientation template segment does not match with framework template
 [COMPILER]: Clang version "9.0.0 (clang-900.0.39.2)"
 [STDLIB]: libc++ version 4000
 [START_OPTIONS]
- -alpha=GENVEQHPSTLSVQEGDSAVIKCTYSDSASNYFPWYKQELGKGPQLIIDIRSNVGEKKDQRIAVTLNKTAKHFSLHITETQPEDSAVYFCAVKDTDKLIFGTGTRLQVFPIQNPDPAVYQLRDSKSSDKSVCLFTDFDSQTNVSQSKDSDVYITDKTVLDMRSMDFKSNSAVAWSNKSDFACANAFNNSIIPEDTFFPSP -beta=DGGITQSPKYLFRKEGQNVTLSCEQNLNHDAMYWYRQDPGQGLRLIYYSQIVNDFQKGDIAEGYSVSREKKESFPLTVTSAQKNPTAFYLCASTGGPGYGAQYFTRLLVLEDLNKVFPPEVAVFEPSEAEISHTQKATLVCLATGFFPDHVELSWWVNGKEVHSGVSTDPQPLKEQPALNDSRYCLSSRLRVSATFWQNPRNHFRCQVQFYGLSENDEWTQDRAKPVTQIVSAEAWGRA -out:prefix=tmp13_ -tcrmodel:template_identity_cutoff=98
+ -alpha=GENVEQHPSTLSVQEGDSAVIKCTYSDSASNYFPWYKQELGKGPQLIIDIRSNVGEKKDQRIAVTLNKTAKHFSLHITETQPEDSAVYFCAVKDTDKLIFGTGTRLQVFPIQNPDPAVYQLRDSKSSDKSVCLFTDFDSQTNVSQSKDSDVYITDKTVLDMRSMDFKSNSAVAWSNKSDFACANAFNNSIIPEDTFFPSP -beta=DGGITQSPKYLFRKEGQNVTLSCEQNLNHDAMYWYRQDPGQGLRLIYYSQIVNDFQKGDIAEGYSVSREKKESFPLTVTSAQKNPTAFYLCASTGGPGYGAQYFTRLLVLEDLNKVFPPEVAVFEPSEAEISHTQKATLVCLATGFFPDHVELSWWVNGKEVHSGVSTDPQPLKEQPALNDSRYCLSSRLRVSATFWQNPRNHFRCQVQFYGLSENDEWTQDRAKPVTQIVSAEAWGRA -out:prefix=tmp13_ -tcrmodel:remodel_tcr_cdr3_loops -tcrmodel:refine_tcr_cdr3_loops
 
 [END_OPTIONS]
 
 [START_BACKTRACE]: RAW_LIBC
-0   tcrmodel.static.macosclangrelease   0x000000010bb73c0f backtrace_string(int) + 79
-1   tcrmodel.static.macosclangrelease   0x000000010bb73b4c utility::excn::Exception::Exception(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&) + 204
-2   tcrmodel.static.macosclangrelease   0x000000010bc0cb7c utility::UtilityExitException::UtilityExitException(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&) + 108
-3   tcrmodel.static.macosclangrelease   0x000000010bc0cab7 utility::exit(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, int) + 55
-4   tcrmodel.static.macosclangrelease   0x00000001083cf319 protocols::tcr::assign_bchain_CDRs_using_REGEX(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, protocols::tcr::TCRseqInfo::tcrsegs&, protocols::tcr::TCRseqInfo::tcrposi&) + 2249
-5   tcrmodel.static.macosclangrelease   0x00000001083b896d protocols::tcr::TCRseqInfo::parse_tcrsegs(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >) + 189
-6   tcrmodel.static.macosclangrelease   0x00000001083b7a6b protocols::tcr::TCRseqInfo::TCRseqInfo(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&) + 331
-7   tcrmodel.static.macosclangrelease   0x0000000107de630a main + 1530
-8   dyld                                0x000000011defe4fe start + 462
+0   tcrmodel.static.macosclangrelease   0x000000010cf1bc0f backtrace_string(int) + 79
+1   tcrmodel.static.macosclangrelease   0x000000010cf1bb4c utility::excn::Exception::Exception(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&) + 204
+2   tcrmodel.static.macosclangrelease   0x000000010cfb4b7c utility::UtilityExitException::UtilityExitException(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&) + 108
+3   tcrmodel.static.macosclangrelease   0x000000010cfb4ab7 utility::exit(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, int) + 55
+4   tcrmodel.static.macosclangrelease   0x0000000109777319 protocols::tcr::assign_bchain_CDRs_using_REGEX(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, protocols::tcr::TCRseqInfo::tcrsegs&, protocols::tcr::TCRseqInfo::tcrposi&) + 2249
+5   tcrmodel.static.macosclangrelease   0x000000010976096d protocols::tcr::TCRseqInfo::parse_tcrsegs(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >) + 189
+6   tcrmodel.static.macosclangrelease   0x000000010975fa6b protocols::tcr::TCRseqInfo::TCRseqInfo(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&) + 331
+7   tcrmodel.static.macosclangrelease   0x000000010918e30a main + 1530
+8   dyld                                0x000000011e91151e start + 462
 
 [END_BACKTRACE]
 

@@ -251,13 +251,13 @@ def run_flexible(pdb, run_info, native):
     print("Running docking...")
     run_flex_dock(pdb, run_info["docking"], run_info["cpu_docking"], native)
     check_rmsd(native, "dock")  # Calculate RMSD CA and all-atom - append to score file
-#    remove_dock(check_score_dock())  # TODO: provide option to not remove
+    remove_dock(check_score_dock())  # TODO: provide option to not remove
     print("Running refine...")
     pdb_refine = check_score_dock()
     run_refine(pdb_refine + ".pdb", run_info["refine"], run_info["cpu_refine"], native)
     best_refine = check_score_refine()
     check_rmsd(native, "refine")
-#    remove_refine(best_refine)  # TODO: provide option to not remove
+    remove_refine(best_refine)  # TODO: provide option to not remove
     print(best_refine)
     print("DONE!")
     print(f"Time: {(time.time() - start)/60:.0f} mins")

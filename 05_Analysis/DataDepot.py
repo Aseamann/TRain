@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
-# Author: Austin Seamann & Dario Ghersi
+# Author: Austin Seamann, Dario Ghersi, & Ryan Ehrlich
 # Version: 0.1
-# Last Updated: March 17th, 2022
+# Last Updated: April 3rd, 2022
 import argparse
 import os
 import pandas as pd
@@ -64,24 +64,22 @@ def run_interface(tcr_dir, chains):
                 file_name = pdb
                 tool.set_file_name(file_name)
             results[pdb] = {"ALPHA": -1.0, "BETA": -1.0}
-            tool.mute_aa(0, 1000, "B")  # muting the beta chain
+            tool.mute_aa(0, 100000, "E")  # muting the beta chain
             # Alpha
             if verbose:
                 subprocess.run([rosetta_dir, "-s", file_name, "@ALPHA_flags"])  # Runs InterfaceAnalyzer
             else:
                 subprocess.run([rosetta_dir, "-s", file_name, "@ALPHA_flags"],
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # Runs InterfaceAnalyzer
-            print("Pass A")
-            tool.unmute_aa(0, 1000, "B")  # un-muting beta chain
-            tool.mute_aa(0, 1000, "A")  # muting the alpha chain
+            tool.unmute_aa(0, 100000, "E")  # un-muting beta chain
+            tool.mute_aa(0, 100000, "D")  # muting the alpha chain
             # Beta
             if verbose:
                 subprocess.run([rosetta_dir, "-s", file_name, "@BETA_flags"])  # Runs InterfaceAnalyzer
             else:
                 subprocess.run([rosetta_dir, "-s", file_name, "@BETA_flags"],
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # Runs InterfaceAnalyzer
-            print("Pass B")
-            tool.unmute_aa(0, 1000, "A")  # un-muting alpha chain
+            tool.unmute_aa(0, 100000, "D")  # un-muting alpha chain
             for score_file in os.listdir(os.getcwd()):  # Collecting scores
                 if score_file.endswith(".sc"):
                     # Input to collect scores from output files
@@ -280,10 +278,18 @@ def get_peptide_inter(chains, interactions, chain_in):
 
 
 # Creates the CSV table
-def make_peptide_table(aa_list, chain_list, csv_name, chain_in):
+def make_peptide_table(tcr_file, aa_list, chain_list, csv_name, chain_in):
     aa_info = {}  # Key: ChainID Value: AA as 3 letter
-    cdr_info = {"D": {"CDR1A": range(28, 33), "CDR2A": range(50, 56), "CDR3A": range(91, 100)},
-                "E": {"CDR1B": range(29, 33), "CDR2B": range(51, 59), "CDR3B": range(94, 104)}}
+    tool = PdbTools3(tcr_file)
+    cdr_pos = tool.pull_cdr()
+    cdr_info = {"D": {"CDR1A": range(cdr_pos[0][0][1], cdr_pos[0][0][2]),
+                      "CDR2A": range(cdr_pos[0][1][1], cdr_pos[0][1][2]),
+                      "CDR2.5A": range(cdr_pos[0][2][1], cdr_pos[0][2][2]),
+                      "CDR3A": range(cdr_pos[0][3][1], cdr_pos[0][3][2])},
+                "E": {"CDR1B": range(cdr_pos[1][0][1], cdr_pos[1][0][2]),
+                      "CDR2B": range(cdr_pos[1][1][1], cdr_pos[1][1][2]),
+                      "CDR2.5B": range(cdr_pos[1][2][1], cdr_pos[1][2][2]),
+                      "CDR3B": range(cdr_pos[1][3][1], cdr_pos[1][3][2])}}
     for chain in chain_list:
         for each in chain_list[chain]:
             aa_info[each[0]] = each[1]
@@ -308,10 +314,19 @@ def make_peptide_table(aa_list, chain_list, csv_name, chain_in):
 
 
 # Generates data for heatmap based on chain_in and CDR regions
-def heatmap_info(aa_list, chain_list, chain_in):
+# Return csv with dataset to create heatmap & cdr_info to avoid rerunning search
+def heatmap_info(tcr_file, aa_list, chain_list, chain_in):
     aa_info = {}  # Key: ChainID Value: aa as 3 letters
-    cdr_info = {"D": {"CDR1A": range(28, 33), "CDR2A": range(50, 56), "CDR3A": range(91, 100)},
-                "E": {"CDR1B": range(29, 33), "CDR2B": range(51, 59), "CDR3B": range(94, 104)}}
+    tool = PdbTools3(tcr_file)
+    cdr_pos = tool.pull_cdr()
+    cdr_info = {"D": {"CDR1α": range(cdr_pos[0][0][1], cdr_pos[0][0][2]),
+                      "CDR2α": range(cdr_pos[0][1][1], cdr_pos[0][1][2]),
+                      "CDR2.5α": range(cdr_pos[0][2][1], cdr_pos[0][2][2]),
+                      "CDR3α": range(cdr_pos[0][3][1], cdr_pos[0][3][2])},
+                "E": {"CDR1β": range(cdr_pos[1][0][1], cdr_pos[1][0][2]),
+                      "CDR2β": range(cdr_pos[1][1][1], cdr_pos[1][1][2]),
+                      "CDR2.5β": range(cdr_pos[1][2][1], cdr_pos[1][2][2]),
+                      "CDR3β": range(cdr_pos[1][3][1], cdr_pos[1][3][2])}}
     header_list = []  # Saves the header constructed: numAA
     for chain in chain_list:  # Key: '234E': 'VAL' for every AA
         for each in chain_list[chain]:
@@ -321,8 +336,9 @@ def heatmap_info(aa_list, chain_list, chain_in):
         for chain in cdr_info:  # First line: CDR id's
             for cdr in cdr_info[chain]:
                 for num in cdr_info[chain][cdr]:
-                    header_list.append(str(num) + chain)
-                    t2.write("," + aa_info[str(num) + chain] + " " + str(num))  # Prints header ex. SER 32, VAL 50...
+                    if (str(num) + chain) in aa_info:  # Catch when gap aa in range of CDR
+                        header_list.append(str(num) + chain)
+                        t2.write("," + aa_info[str(num) + chain] + " " + str(num))  # Prints header ex. SER 32, VAL 50..
         t2.write("\n")
         for AA in aa_list:  # Loops though each AA in file and writes ones that partner with D or E
             if AA[-1] == chain_in:  # If the interaction is with specified chain
@@ -341,10 +357,10 @@ def heatmap_info(aa_list, chain_list, chain_in):
                     if not flag:
                         t2.write(",0")  # If not broken out of loop, energy 0
                 t2.write("\n")
-    return file_name
+    return file_name, cdr_info
 
 
-def heatmap(info, chain_in):
+def heatmap(info, cdr_info, chain_in, font_size, distance_in=0.0, distance=False):
     # Read in csv
     df = pd.read_csv(info)
     # Remove columns with only zero values if MHC
@@ -352,20 +368,32 @@ def heatmap(info, chain_in):
         # df = df.loc[:, (df != 0).any(axis=0)]
         df = df[(df.sum(axis=1) != 0)]
     # Read in x and y axis labels
-    y_axis_labels = list(df.iloc[:, 0])
+    y_axis_labels = list(df.iloc[:,0])
     x_axis_labels = list(df.iloc[0:, :])[1:]
     # Drop first column
     df = df.iloc[:, 1:]
     # Annotation labels - only when below 0
-    labels = df.iloc[:, :].applymap(lambda v: str(v) if v < 0 else '')
-    ax = sns.heatmap(df, vmax=0, linewidths=.2, linecolor="grey", xticklabels=x_axis_labels, yticklabels=y_axis_labels,
-                     cmap=sns.cubehelix_palette(start=2, rot=0, reverse=True, dark=0, light=1, as_cmap=True),
-                     annot=labels, annot_kws={"fontsize": 8, 'rotation': 90}, fmt='')
-    plt.xlabel("TCR")
+    if not distance:
+        labels = df.iloc[:, :].applymap(lambda v: str(v) if v < 0 else '')
+        ax = sns.heatmap(df, vmax=0, linewidths=.2, linecolor="grey", xticklabels=x_axis_labels,
+                         yticklabels=y_axis_labels,
+                         cmap=sns.cubehelix_palette(start=2, rot=0, reverse=True, dark=0, light=1, as_cmap=True),
+                         annot=labels, annot_kws={"fontsize": font_size, 'rotation': 90}, fmt='')
+        ax.set_yticklabels(y_axis_labels, size=font_size)
+        ax.set_xticklabels(x_axis_labels, size=font_size)
+    if distance:
+        labels = df.iloc[:, :].applymap(lambda v: str(f'{v:.3f}') if v < 10000 else '')
+        ax = sns.heatmap(df, vmax=distance_in, vmin=0, linewidths=.2, linecolor="grey", xticklabels=x_axis_labels,
+                         yticklabels=y_axis_labels,
+                         cmap=(sns.cubehelix_palette(start=2, rot=0, reverse=True, dark=0, light=1)),
+                         annot=labels, annot_kws={"fontsize": font_size, 'rotation': 90}, fmt='')
+        ax.set_yticklabels(y_axis_labels, size=font_size)
+        ax.set_xticklabels(x_axis_labels, size=font_size)
+    plt.xlabel("TCR", size=font_size)
     y_label = "Peptide"
     if chain_in == "A":
         y_label = "MHC"
-    plt.ylabel(y_label)
+    plt.ylabel(y_label, size=font_size)
     # Adding in additional tick marks to account for labeling CDR regions
     # if not remove_0:
     ax2 = ax.twiny()
@@ -373,25 +401,25 @@ def heatmap(info, chain_in):
     ax2.set_xticks(ax.get_xticks())
     x_tick_labels = []
     # Capture first int
-    previous_num = int(x_axis_labels[0].split(" ")[-1].split(".")[0])
+    chain_pos = ["D", "E"]
+    chain_pos_num = 0
     cdr_pos = 0
-    cdrs = ["CDR1α", "CDR2α", "CDR3α", "CDR1β", "CDR2β", "CDR3β"]
-    cdr_color_dic = {"CDR1α": "darkred", "CDR2α": "firebrick", "CDR3α": "red",
-                     "CDR1β": "darkblue", "CDR2β": "blue", "CDR3β": "royalblue"}
+    cdrs = ["CDR1α", "CDR2α", "CDR2.5α", "CDR3α", "CDR1β", "CDR2β", "CDR2.5β", "CDR3β"]
+    cdr_color_dic = {"CDR1α": "red", "CDR2α": "orange", "CDR2.5α": "darkgreen", "CDR3α": "blue",
+                     "CDR1β": "red", "CDR2β": "orange", "CDR2.5β": "darkgreen", "CDR3β": "blue"}
     colors = []
     results = []
     for each in x_axis_labels:
         num = int(each.split(" ")[-1].split(".")[0])
-        if num > previous_num + 1:
-            cdr_pos += 1
-        if num < previous_num:
-            cdr_pos += 1
-        previous_num = num
+        if num not in cdr_info[chain_pos[chain_pos_num]][cdrs[cdr_pos]]:  # Choosing correct cdr color
+            if cdr_pos == 3:  # Once you hit CDR3a go to CDR1b
+                chain_pos_num = 1
+            cdr_pos += 1  # Progress
         colors.append(cdr_color_dic[cdrs[cdr_pos]])
         results.append(cdrs[cdr_pos])
         x_tick_labels.append(cdrs[cdr_pos])
     # Set CDR xtick labels
-    ax2.set_xticklabels(x_tick_labels, fontsize=8, rotation=90)
+    ax2.set_xticklabels(x_tick_labels, fontsize=font_size, rotation=90)
     for xtick, color in zip(ax2.get_xticklabels(), colors):
         xtick.set_color(color)
     ax2.tick_params(top=False)
@@ -404,27 +432,137 @@ def heatmap(info, chain_in):
     plt.show()
 
 
-def interface_heatmap(interface_breakdown, mhc):
+def interface_heatmap(tcr_file, interface_breakdown, mhc, font_size):
     # Changes to MHC chain if requested
     chain_in = "C"
     if mhc:
         chain_in = "A"
     chain_list, inter_list = read_sheet(interface_breakdown)
     aa_inter = get_peptide_inter(chain_list, inter_list, chain_in)
-    info = heatmap_info(aa_inter, chain_list, chain_in)
-    heatmap(info, chain_in)
+    info, cdr_info = heatmap_info(tcr_file, aa_inter, chain_list, chain_in)
+    heatmap(info, cdr_info, chain_in, font_size)
     os.remove(info)
 
 
+# Calculate distances between CDR loops and antigen - save atoms within cutoff distance
+# Input:
+#   tcr_file: PDB of TCR
+#   distance: Cutoff of collected values
+#   alpha_carbon: Distance from alpha_carbon - else distance from closest atom in aa
+#   chain_in: MHC chain: A or Peptide chain: C
+def get_contacts(tcr_file, distance, alpha_carbon, chain_in):
+    tool = PdbTools3(tcr_file)
+    cdr_pos = tool.pull_cdr()
+    cdr_info = {"D": {"CDR1α": range(cdr_pos[0][0][1], cdr_pos[0][0][2]),
+                      "CDR2α": range(cdr_pos[0][1][1], cdr_pos[0][1][2]),
+                      "CDR2.5α": range(cdr_pos[0][2][1], cdr_pos[0][2][2]),
+                      "CDR3α": range(cdr_pos[0][3][1], cdr_pos[0][3][2])},
+                "E": {"CDR1β": range(cdr_pos[1][0][1], cdr_pos[1][0][2]),
+                      "CDR2β": range(cdr_pos[1][1][1], cdr_pos[1][1][2]),
+                      "CDR2.5β": range(cdr_pos[1][2][1], cdr_pos[1][2][2]),
+                      "CDR3β": range(cdr_pos[1][3][1], cdr_pos[1][3][2])}}
+    cdr_aa = {"D": [], "E": []}
+    # Convert cdr_info into list of positions
+    for chain in cdr_info:
+        for cdr in cdr_info[chain]:
+            cdr_aa[chain] += list(cdr_info[chain][cdr])
+    antigen_atoms = tool.get_atoms_on_chain(chain_in)  # Collect antigen atoms based on chain_in
+    if chain_in == "A":  # If pmhc, only collect first 180 amino acids
+        aa_count = 0
+        past_aa = -1
+        temp_list = []
+        for atom in antigen_atoms:
+            if aa_count <= 180:
+                if atom["comp_num"] != past_aa:
+                    past_aa = atom["comp_num"]
+                    aa_count += 1
+                temp_list.append(atom)
+        antigen_atoms = temp_list
+    alpha_atoms = tool.get_atoms_on_chain("D")  # Collect alpha chain atoms
+    beta_atoms = tool.get_atoms_on_chain("E")  # Collect beta chain atoms
+    cdr_atoms = {"D": [], "E": []}  # Store list of atoms on CDR residues
+    all_aa = {"D": {}, "E": {}, chain_in: {}}  # Store list of residues and resi num for each amino acid in each chain
+    # Loop through all atoms
+    for chain in [alpha_atoms, beta_atoms]:
+        for atom in chain:
+            if atom["comp_num"] not in list(all_aa[atom["chain_id"]]):  # Store all_aa info {chain: {202: THR}}
+                all_aa[atom["chain_id"]][atom["comp_num"]] = atom["atom_comp_id"]
+            if atom["comp_num"] in cdr_aa[atom["chain_id"]]:  # Find atoms in cdr loop
+                cdr_atoms[atom["chain_id"]].append(atom)
+    # print([atom for atom in cdr_atoms["D"] if atom["atom_id"]=="CA"])
+    if alpha_carbon:
+        for chain in cdr_atoms:
+            cdr_atoms[chain] = [atom for atom in cdr_atoms[chain] if atom["atom_id"]=="CA"]
+        antigen_atoms = [atom for atom in antigen_atoms if atom["atom_id"]=="CA"]
+    contacts = {"D": {}, "E": {}}  # chain_id: {AA comp_num: {partner AA comp_num: distance}}
+    for chain in cdr_atoms.keys():
+        flag = False  # Once we've looped once
+        for atom_1 in cdr_atoms[chain]:
+            for atom_2 in antigen_atoms:
+                # Collect antigen resi as above
+                if not flag:
+                    if atom_2["comp_num"] not in all_aa[atom_2["chain_id"]]:
+                        all_aa[atom_2["chain_id"]][atom_2["comp_num"]] = atom_2["atom_comp_id"]
+                # Calculate distance between each partner
+                euc_dist = tool.euclidean_of_atoms(atom_1["atom_num"], atom_2["atom_num"])
+                if euc_dist <= distance:  # if within threshold
+                    if atom_1['comp_num'] in contacts[chain].keys():  # if cdr aa already documented
+                        if atom_2['comp_num'] in contacts[chain][atom_1['comp_num']]:  # If cdr aa partner found
+                            if euc_dist < contacts[chain][atom_1['comp_num']][atom_2['comp_num']]:
+                                contacts[chain][atom_1['comp_num']][atom_2['comp_num']] = euc_dist
+                        else:
+                            contacts[chain][atom_1['comp_num']][atom_2['comp_num']] = euc_dist
+                    else:  # if not previous aa to aa contact documented
+                        contacts[chain][atom_1['comp_num']] = {atom_2['comp_num']: euc_dist}
+            flag = True
+    return contacts, cdr_info, cdr_aa, all_aa  # Chain_id: {aa comp_num: {partner AA comp_num: distance}}
+
+
+def distance_heatmap_info(contacts, cdr_info, all_aa, chain_in):
+    file_name = "temp.csv"
+    with open(file_name, "w") as f1:
+        header_list = []  # Keeps tracks of position of aa in header list ex. 101E
+        for chain in cdr_info:  # Alpha & beta chain
+            for cdr in cdr_info[chain]:  # Loop over each cdr
+                for num in cdr_info[chain][cdr]:  # Loop over each position in cdr
+                    # Write Three Letter + Resi Num
+                    if num in all_aa[chain].keys():
+                        header_list.append(str(num) + chain)
+                        f1.write("," + all_aa[chain][num] + " " + str(num))
+        f1.write("\n")
+        for num in all_aa[chain_in]:
+            f1.write(all_aa[chain_in][num] + " " + str(num))
+            for aa in header_list:
+                if int(aa[:-1]) in contacts[aa[-1]].keys():
+                    if num in contacts[aa[-1]][int(aa[:-1])].keys():  # Contacts[chain][num]
+                        f1.write("," + str(contacts[aa[-1]][int(aa[:-1])][num]))
+                    else:
+                        f1.write("," + str(10000))
+                else:
+                    f1.write("," + str(10000))
+            f1.write("\n")
+    return file_name
+
+
+def interface_heatmap_dist(tcr_file, distance, alpha_carbon, mhc, font_size):
+    chain_in = "C"
+    if mhc:
+        chain_in = "A"
+    contacts, cdr_info, cdr_aa, all_aa = get_contacts(tcr_file, distance, alpha_carbon, chain_in)  # Collect contacts
+    temp_file = distance_heatmap_info(contacts, cdr_info, all_aa, chain_in)  # Create csv for heatmap
+    heatmap(temp_file, cdr_info, chain_in, font_size, distance, True)  # Create heatmap
+    os.remove(temp_file)
+
+
 # Controller method to generate energy breakdown table
-def peptide_table(energry_breakdown, mhc):
+def peptide_table(tcr_file, energry_breakdown, mhc):
     # Changes to MHC chain if requested
     chain_in = "C"
     if mhc:
         chain_in = "A"
     chain_list, inter_list = read_sheet(energry_breakdown)
     aa_inter = get_peptide_inter(chain_list, inter_list, chain_in)
-    make_peptide_table(aa_inter, chain_list, "output.csv", chain_in)
+    make_peptide_table(tcr_file, aa_inter, chain_list, "output.csv", chain_in)
 
 
 # Convert tsv to csv
@@ -494,10 +632,14 @@ def parse_args():
     parser.add_argument("--ymin", help="(Native) Y axis value minimum", type=int)
     parser.add_argument("--xmax", help="(Native) X axis value maximum", type=int)
     parser.add_argument("--xmin", help="(Native) X axis value minimum", type=int)
-    parser.add_argument("-e", "--heatmap", help="(EB) Energy breakdown csv", type=str)
-    parser.add_argument("-t", "--table", help="(EB) Energy breakdown csv", type=str)
-    parser.add_argument("-m", "--mhc", help="(EB) Changes energy breakdown to MHC versus peptide", action="store_true"
-                        , default=False)
+    parser.add_argument("-p", "--heatmap_dist", help="(DHM) Distance Breakdown TCR PDB File", type=str)
+    parser.add_argument("-d", "--distance", help="(DHM) Distance for heatmap | Default 4.5", type=float, default=4.5)
+    parser.add_argument("-c", "--alpha_carbon", help="(DHM) Alpha Carbon Only", action="store_true", default=False)
+    parser.add_argument("-e", "--heatmap_energy", help="(EB) TCR PDB File", type=str)
+    parser.add_argument("-t", "--table", help="(EB) TCR PDB File", type=str)
+    parser.add_argument("-m", "--mhc", help="(DHM/EB) Changes energy breakdown to MHC versus peptide",
+                        action="store_true", default=False)
+    parser.add_argument("-f", "--fontsize", help="(DHM/EB) Adjust font size | Default 12", type=int, default=12)
     return parser.parse_args()
 
 
@@ -520,24 +662,25 @@ def main():
             single_graph(args.sc, args.xaxis, args.yaxis, args.ymax, args.ymin, args.xmax, args.xmin)
         else:
             multi_graph(args.sc, args.xaxis, args.yaxis, args.ymax, args.ymin, args.xmax, args.xmin)
-    # Heatmap or table routing
-    if args.heatmap or args.table:
-        if args.heatmap:  # Generate heatmap
-            breakdown_file = args.heatmap
-            if breakdown_file.endswith(".pdb"):  # Run energy breakdown if PDB submitted
-                rosetta_binary("residue_energy_breakdown")  # Set binary
-                breakdown_file = run_breakdown(args.heatmap)
-            elif breakdown_file.endswith(".out") or breakdown_file.endswith(".tsv"):  # Convert to csv if tsv
-                breakdown_file = tsv_to_csv(breakdown_file)
-            interface_heatmap(breakdown_file, args.mhc)
-        if args.table:  # Generate breakdown table
-            breakdown_file = args.table
-            if breakdown_file.endswith(".pdb"):  # Run energy breakdown if PDB submitted
-                rosetta_binary("residue_energy_breakdown")  # Set binary
-                breakdown_file = run_breakdown(args.table)
-            elif breakdown_file.endswith(".out") or breakdown_file.endswith(".tsv"):  # Convert to csv if tsv
-                breakdown_file = tsv_to_csv(breakdown_file)
-            peptide_table(breakdown_file, args.mhc)
+    # Heatmap or table routing for energy breakdown
+    if args.heatmap_energy:  # Generate heatmap
+        if args.heatmap_energy.endswith(".pdb"):  # Run energy breakdown if PDB submitted
+            rosetta_binary("residue_energy_breakdown")  # Set binary
+            breakdown_file = run_breakdown(args.heatmap_energy)
+            interface_heatmap(args.heatmap_energy, breakdown_file, args.mhc, args.fontsize)
+            os.remove(breakdown_file)
+    if args.table:  # Generate breakdown table
+        if args.table.endswith(".pdb"):  # Run energy breakdown if PDB submitted
+            rosetta_binary("residue_energy_breakdown")  # Set binary
+            breakdown_file = run_breakdown(args.table)
+            peptide_table(args.table, breakdown_file, args.mhc)
+            os.remove(breakdown_file)
+    # Heatmap for distance
+    if args.heatmap_dist:
+        if args.heatmap_dist.endswith(".pdb"):
+            interface_heatmap_dist(args.heatmap_dist, args.distance, args.alpha_carbon, args.mhc, args.fontsize)
+        else:
+            print("Provide PDB File")
 
 
 if __name__ == '__main__':

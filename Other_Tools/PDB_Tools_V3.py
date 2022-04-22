@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
-# Author: Austin Seamann & Dario Ghersi
+# Author: Austin Seamann, Dario Ghersi, and Ryan Ehrlich
 # Version: 0.1.1
-# Last Updated: January 5th, 2022
+# Last Updated: March 21st, 2022
 import argparse
 from math import sqrt, pow
 import statistics
@@ -14,6 +14,16 @@ from Bio.Align import substitution_matrices
 import Bio.PDB
 import os
 
+# Global
+# PDB indices
+AA = [19, 70]
+POSX = [30, 38]
+POSY = [38, 46]
+POSZ = [46, 54]
+POSRES = [17, 20]
+POSSEQ = [22, 26]
+POSCHAIN = 21
+ChainID = 11
 
 class PdbTools3:
     # initialize PdbTools
@@ -215,27 +225,6 @@ class PdbTools3:
         beta = sorted(tmp_beta)
         result['ALPHA'] = alpha[-1][1]
         result['BETA'] = beta[-1][1]
-        # Old method to confirm chains were proximal to each other.
-        # while True:
-        # atom = self.first_atom_on_chain(result['ALPHA'])
-        # position = -1
-        #     atom2 = self.first_atom_on_chain(result['BETA'])
-        #     # Distance between 1st atom in each chain
-        #     distance1 = self.euclidean_of_atoms(atom['atom_num'], atom2['atom_num'])
-        #     # Distance between 1st and 125 atoms in each chain
-        #     distance2 = self.euclidean_of_atoms(atom['atom_num'], atom2['atom_num'] + 125)
-        #     # Determines if TCR chains are within typical distance.
-        #     if distance1 <= 46 and abs(distance1 - distance2) <= 15:
-        #         self.test_list[self.get_file_name()] = abs(distance1 - distance2)
-        #         result['BETA'] = beta[position][1]
-        #         break
-        #     elif position == (len(beta) * -1):
-        #         print(self.get_file_name() + ' : Possibly does not contain both TCR chains')
-        #         result['BETA'] = beta[-1][1]
-        #         break
-        #     else:
-        #         position -= 1
-        #         result['BETA'] = beta[position][1]
         return result
 
     # Returns the amino acid sequence of either 'ALPHA' or 'BETA' chain as single letter AA abbreviation
@@ -1168,6 +1157,105 @@ class PdbTools3:
         with open(self.file_name, 'w') as f1:
             f1.write(self.rebuild_atom_line(new_order))
 
+    # Below CDR methods are adapted from Ryan Ehrlich's code
+    # Primary method
+    # Returns CDR1a, CDR2a, CDR2.5a, CDR3, CDR1b, CDR2b, CDR2.5b, CDR3b
+    def pull_cdr(self):
+        from getCDRs import cdr_loops
+        trav, trbv = cdr_loops()  # get germline dictionary
+        # loops = CdrLoopInfo(self.get_file_name())
+        tcrDict = self.getLines()  # return residues identity and positions
+        aseq, bseq, apos, bpos = self.getSeqs(tcrDict)  # return pdb seqs and positions
+        # CDR loop identity and residue numbering
+        alpInds, betInds = self.loopPositions(aseq, apos, trav), self.loopPositions(bseq, bpos, trbv)
+        return alpInds, betInds
+
+    # Helper method to pull_cdr()
+    def getLines(self):
+        alpha = ['D']
+        beta = ['E']
+        data = open(self.get_file_name(), 'r')
+        seq_dict = {'alpha': [], 'beta': []}
+        for line in data:
+            if line[:4] == "ATOM":
+                if line[21] in alpha:
+                    resID = line[POSRES[0]:POSRES[1]] + "_" + line[POSSEQ[0]:POSSEQ[1]] + "_" + line[POSCHAIN]
+                    resID = resID.replace(" ", "")
+                    if resID not in seq_dict['alpha']:
+                        seq_dict['alpha'].append(resID)
+                if line[21] in beta:
+                    resID = line[POSRES[0]:POSRES[1]] + "_" + line[POSSEQ[0]:POSSEQ[1]] + "_" + line[POSCHAIN]
+                    resID = resID.replace(" ", "")
+                    if resID not in seq_dict['beta']:
+                        seq_dict['beta'].append(resID)
+        return seq_dict
+
+    # Helper method to pull_cdr()
+    def getSeqs(self, dict):  # return seq of pdb chains (tcr) as well as pos_chain
+        # triple letter abbreviation for amino acids
+        aa_names = [
+            "ALA", "CYS", "ASP", "GLU", "PHE", "GLY", "HIS", "ILE", "LYS", "LEU",
+            "MET", "ASN", "PRO", "GLN", "ARG", "SER", "THR", "VAL", "TRP", "TYR",
+        ]
+
+        # single letter abbreviation for amino acids
+        aa_singleletter = "ACDEFGHIKLMNPQRSTVWY"
+        aa_tripleletter = aa_names
+        keys = dict.keys()
+        alp, bet, alp_inds, bet_inds = [], [], [], []
+        for key in keys:
+            seq = dict.get(key)
+            for r in range(len(seq)):
+                res = seq[r][:3]
+                ind = aa_tripleletter.index(res)
+                res_ = aa_singleletter[ind]
+                if key == 'alpha':
+                    alp.append(res_)
+                    alp_inds.append(seq[r][4:-2])
+                if key == 'beta':
+                    bet.append(res_)
+                    bet_inds.append(seq[r][4:-2])
+        return ''.join(alp), ''.join(bet), alp_inds, bet_inds
+
+    # Helper method to pull_cdr()
+    def getCDR3(self, seq, germline):
+        start = germline.rfind('C')  # get ind of C from CDR dict
+        check = germline.find(seq[5:10])  # reference start point in germline
+        diff = check - 5  # difference between seq and germline start
+        seq_ = seq[start - diff:]  # adjusted seq to match gerline
+        rev = []
+        for s in reversed(seq_):  # make reverse seq_
+            rev.append(s)
+        rev = ''.join(rev)
+        end = 0
+        for i in range(len(rev) - 2):  # find end of CDR3 using G*G pattern starting from the end of seq_ (rev)
+            if rev[i] == 'G':
+                if rev[i + 2] == 'G':
+                    end = i
+                    break
+        if end != 0:  # if end does not equal 0, trim using G*G pattern
+            end2 = len(seq_) - end  # end of G*G patter with CDR3
+            cdr3 = seq_[:end2 - 3]  # trim G*G pattern
+        if rev[0] == 'F' or end == 0:  # if end = 0, end of seq_ is the end of CDR3
+            cdr3 = seq_
+        return (cdr3)
+
+    # Helper method to pull_cdr()
+    def loopPositions(self, seq, resNums, trv):
+        cdrList = []
+        for key in trv:
+            loops = trv.get(key)
+            check = [''.join(loops[0]), ''.join(loops[1]), ''.join(loops[2])]
+            if all(x in seq for x in check):  # if all germline CDRs in seq, continue
+                cdr3 = self.getCDR3(seq, ''.join(loops[4]))  # get CDR3
+                cdrList = [''.join(loops[0]), ''.join(loops[1]), ''.join(loops[2]), cdr3]
+                break
+        loopInfo = []  # cdr loop with res number range (corresponds to pdb)
+        for loop in cdrList:  # get loops and loop res number ranges
+            ind = seq.find(loop)
+            start, end, = resNums[ind], resNums[ind + len(loop) - 1]
+            loopInfo.append([loop, int(start), int(end)])
+        return (loopInfo)
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -1189,7 +1277,7 @@ def parse_args():
     parser.add_argument("--pmhc", help="Get pmhc chains", default=False, action="store_true")
     parser.add_argument("--alpha", help="Get alpha chain", default=False, action="store_true")
     parser.add_argument("--beta", help="Get beta chain", default=False, action="store_true")
-    parser.add_argument("-r", "--resolution", help="Get resolution", default=False, action="store_true")
+    parser.add_argument("--resolution", help="Get resolution", default=False, action="store_true")
     parser.add_argument("--clean_pdb", help="Updated to updated labeling and chain order", default=False,
                         action="store_true")
     parser.add_argument("--align", help="(Align) Superimpose this reference structure to submitted pdb", type=str)
@@ -1200,6 +1288,7 @@ def parse_args():
     parser.add_argument("--ref_chains", help="(Align|rmsd) Chains from reference to match with target", type=str)
     parser.add_argument("--center", help="Center TCR to cord. 0,0,0", action="store_true", default=False)
     parser.add_argument("--reorder", help="Reorder chains based on string provided (case sensitive)", type=str)
+    parser.add_argument("--pull_cdr", help="Pull CDRs", action="store_true", default=False)
     return parser.parse_args()
 
 
@@ -1254,6 +1343,9 @@ def main():
             pdb.center()
     if args.reorder:
         pdb.reorder_chains(args.reorder)
+    if args.pull_cdr:
+        # from getCDRs import cdr_loops
+        print(pdb.pull_cdr())
 
 
 if __name__ == '__main__':

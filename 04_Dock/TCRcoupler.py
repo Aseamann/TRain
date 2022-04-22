@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
 # Version: 0.1
-# Last Updated: January 12th, 2022
+# Last Updated: March 18th, 2022
 
 import argparse
 import subprocess
@@ -143,7 +143,8 @@ def run_relax(pdb, runs, cpus):
         dir_relax = rosetta_dir + "/main/source/bin/relax." + version
     make_relax_file(pdb, runs, cpus)
     if not no_mpi:
-        subprocess.run(["mpirun", dir_relax, "@flag_input_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["mpirun", "--use-hwthread-cpus", "-np", cpus, dir_relax, "@flag_input_relax"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
         subprocess.run([dir_relax, "@flag_input_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -153,7 +154,7 @@ def run_relax(pdb, runs, cpus):
 def make_relax_file(pdb, runs, cpus):
     with open("flag_input_relax", "w") as relax_file:
         relax_file.write("-in:file:s " + pdb + "\n\n")
-        relax_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
+        # relax_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
         relax_file.write("-nstruct " + str(runs) + " \n\n")
         relax_file.write("#-relax:constrain_relax_to_start_coords\n")
         relax_file.write("#-relax:ramp_constraints false\n\n")
@@ -201,8 +202,8 @@ def run_dock(pdb, runs, cpus, native):
         dir_dock = rosetta_dir + "/main/source/bin/docking_protocol." + version
     make_docking_file(pdb, runs, cpus, native)
     if not no_mpi:
-        subprocess.run(["mpirun", dir_dock, "@flag_local_docking"], stdout=subprocess.DEVNULL,
-                       stderr=subprocess.DEVNULL)
+        subprocess.run(["mpirun", "--use-hwthread-cpus", "-np", cpus, dir_dock, "@flag_local_docking"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
         subprocess.run([dir_dock, "@flag_local_docking"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -215,7 +216,7 @@ def make_docking_file(pdb, runs, cpus, native):
         if native != "...":
             dock_file.write("-in:file:native " + native + "\n")
         dock_file.write("-unboundrot output_files/relax/" + pdb + "\n\n")
-        dock_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
+        # dock_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
         dock_file.write("-nstruct " + str(runs) + " \n\n")
         dock_file.write("-partners AC_DE\n")  # TODO: Update this once adding in chain parameters
         dock_file.write("-dock_pert 3 8\n\n")
@@ -250,13 +251,15 @@ def run_flexible(pdb, run_info, native):
     run_prepack(pdb)
     print("Running docking...")
     run_flex_dock(pdb, run_info["docking"], run_info["cpu_docking"], native)
-    check_rmsd(native, "dock")  # Calculate RMSD CA and all-atom - append to score file
+    if native != "...":
+        check_rmsd(native, "dock")  # Calculate RMSD CA and all-atom - append to score file
     remove_dock(check_score_dock())  # TODO: provide option to not remove
     print("Running refine...")
     pdb_refine = check_score_dock()
     run_refine(pdb_refine + ".pdb", run_info["refine"], run_info["cpu_refine"], native)
     best_refine = check_score_refine()
-    check_rmsd(native, "refine")
+    if native != "...":
+        check_rmsd(native, "refine")
     remove_refine(best_refine)  # TODO: provide option to not remove
     print(best_refine)
     print("DONE!")
@@ -288,7 +291,8 @@ def run_pmhc_relax(pmhc, runs, cpus):
         dir_relax = rosetta_dir + "/main/source/bin/relax." + version
     make_pmhc_relax_file(pmhc, runs, cpus)
     if not no_mpi:
-        subprocess.run(["mpirun", dir_relax, "@flag_pmhc_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["mpirun", "--use-hwthread-cpus", "-np", cpus, dir_relax, "@flag_pmhc_relax"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
         subprocess.run([dir_relax, "@flag_pmhc_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     check_score_pmhc_relax()
@@ -317,7 +321,7 @@ def check_score_pmhc_relax():
 def make_pmhc_relax_file(pmhc, runs, cpus):
     with open("flag_pmhc_relax", "w") as relax_file:
         relax_file.write("-in:file:s " + pmhc + "\n\n")
-        relax_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
+        # relax_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
         relax_file.write("-nstruct " + str(runs) + " \n\n")
         relax_file.write("#-relax:constrain_relax_to_start_coords\n")
         relax_file.write("#-relax:ramp_constraints false\n\n")
@@ -339,7 +343,8 @@ def run_xml_relax(tcr, runs, cpus):
     make_xml_file()
     make_xml_flag(tcr, runs, cpus)
     if not no_mpi:
-        subprocess.run(["mpirun", dir_script, "@flag_xml_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["mpirun", "--use-hwthread-cpus", "-np", cpus, dir_script, "@flag_xml_relax"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
         subprocess.run([dir_script, "@flag_xml_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -367,7 +372,7 @@ def make_xml_file():
 def make_xml_flag(tcr, runs, cpus):
     with open("flag_xml_relax", "w") as f:
         f.write("-in:file:s " + str(tcr) + "\n\n")
-        f.write("#SBATCH --ntasks=" + str(cpus) + "\n")
+        # f.write("#SBATCH --ntasks=" + str(cpus) + "\n")
         f.write("-nstruct " + str(runs) + "\n\n")
         f.write("-parser:protocol nma.xml\n\n")
         f.write("-out:path:all input_files/tcr_ensembles\n")
@@ -386,8 +391,8 @@ def run_bb_relax(tcr, runs, cpus):
         dir_relax = rosetta_dir + "/main/source/bin/relax." + version
     make_bb_relax_file(tcr, runs, cpus)
     if not no_mpi:
-        subprocess.run(["mpirun", dir_relax, "@flag_bb_tcr_relax"], stdout=subprocess.DEVNULL,
-                       stderr=subprocess.DEVNULL)
+        subprocess.run(["mpirun", "--use-hwthread-cpus", "-np", cpus, dir_relax, "@flag_bb_tcr_relax"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
         subprocess.run([dir_relax, "@flag_bb_tcr_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -397,7 +402,7 @@ def run_bb_relax(tcr, runs, cpus):
 def make_bb_relax_file(tcr, runs, cpus):
     with open("flag_bb_tcr_relax", "w") as relax_file:
         relax_file.write("-in:file:s " + str(tcr) + "\n\n")
-        relax_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
+        # relax_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
         relax_file.write("-nstruct " + str(runs) + " \n\n")
         relax_file.write("-backrub:ntrials 20000\n")
         relax_file.write("-backrub:mc_kt 0.6\n\n")
@@ -413,7 +418,8 @@ def make_bb_relax_file(tcr, runs, cpus):
 def run_fast_relax(tcr, runs, cpus):
     dir_relax = rosetta_dir + "/main/source/bin/relax.mpi." + version
     make_fast_relax_file(tcr, runs, cpus)
-    subprocess.run(["mpirun", dir_relax, "@flag_fast_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["mpirun", "--use-hwthread-cpus", "-np", cpus, dir_relax, "@flag_fast_relax"],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 # Method: make_fast_relax_file
@@ -421,7 +427,7 @@ def run_fast_relax(tcr, runs, cpus):
 def make_fast_relax_file(tcr, runs, cpus):
     with open("flag_fast_relax", "w") as relax_file:
         relax_file.write("-in:file:s " + str(tcr) + "\n\n")
-        relax_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
+        # relax_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
         relax_file.write("-nstruct " + str(runs) + " \n\n")
         relax_file.write("-relax:thorough\n\n")
         relax_file.write("-out:path:all input_files/tcr_ensembles/\n")
@@ -437,8 +443,7 @@ def run_prepack(pdb):
     dir_relax = rosetta_dir + "/main/source/bin/docking_prepack_protocol.mpi." + version
     make_ensemble_files()
     make_prepack_file(pdb)
-    subprocess.run(["mpirun", dir_relax, "@flag_ensemble_prepack"], stdout=subprocess.DEVNULL,
-                   stderr=subprocess.DEVNULL)
+    subprocess.run([dir_relax, "@flag_ensemble_prepack"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 # Method: make_ensemble_files()
@@ -479,7 +484,8 @@ def make_prepack_file(pdb):
 def run_flex_dock(pdb, runs, cpus, native):
     dir_dock = rosetta_dir + "/main/source/bin/docking_protocol.mpi." + version
     make_flex_docking_file(pdb, runs, cpus, native)
-    subprocess.run(["mpirun", dir_dock, "@flag_ensemble_docking"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["mpirun", "--use-hwthread-cpus", "-np", cpus, dir_dock, "@flag_ensemble_docking"],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 # Method: make_docking_file()
@@ -490,7 +496,7 @@ def make_flex_docking_file(pdb, runs, cpus, native):
         if native != "...":
             dock_file.write("-in:file:native " + native + "\n")
         dock_file.write("-unboundrot " + pdb + "\n\n")
-        dock_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
+        # dock_file.write("#SBATCH --ntasks=" + str(cpus) + "\n")
         dock_file.write("-nstruct " + str(runs) + " \n\n")
         dock_file.write("-partners AC_DE\n")
         dock_file.write("-dock_pert 3 8\n\n")
@@ -546,7 +552,8 @@ def check_score_dock():
 def run_refine(pdb, runs, cpus, native):
     dir_dock = rosetta_dir + "/main/source/bin/docking_protocol.mpi." + version
     make_refine_file(pdb, runs, cpus, native)
-    subprocess.run(["mpirun", dir_dock, "@flag_local_refine"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["mpirun", "--use-hwthread-cpus", "-np", cpus, dir_dock, "@flag_local_refine"],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 # Method: make_refine_file()
@@ -557,7 +564,7 @@ def make_refine_file(pdb, runs, cpus, native):
         if native != "...":
             refine_file.write("-in:file:native " + native + "\n")
         refine_file.write("#SBATCH --ntasks=" + str(runs) + "\n")
-        refine_file.write("-nstruct " + str(cpus) + " \n\n")
+        # refine_file.write("-nstruct " + str(cpus) + " \n\n")
         refine_file.write("-docking_local_refine\n")
         refine_file.write("-use_input_sc\n\n")
         refine_file.write("-partners AC_DE\n")
@@ -626,9 +633,8 @@ def choose_par(args, run_list, multi=False):
     if args.nompi:
         run_list.append("--nompi")
     run_list.extend(["-c", str(args.cores), "-a", str(args.relax), "-d", str(args.docking), "-p", str(args.pmhc),
-                     "-x", str(args.xml), "-b", str(args.bb), "-s", str(args.fast), "-e", str(args.refine), "-n",
-                     str(args.native)])
-    if multi:  # If submitting multiple docks with matching native files
+                     "-x", str(args.xml), "-b", str(args.bb), "-s", str(args.fast), "-e", str(args.refine)])
+    if multi and args.native != "...":  # If submitting multiple docks with matching native files
         potential_pdb = run_list[2][:4] + ".pdb"
         if potential_pdb in os.listdir(program_dir + "/" + run_list[-1]):
             run_list[-1] = program_dir + "/" + run_list[-1] + "/" + potential_pdb
@@ -734,7 +740,7 @@ def parse_args():
                         default=os.cpu_count(), type=int)
     parser.add_argument("-a", "--relax", help="(Rigid) Number of relax runs performed", default=100,
                         type=int)
-    parser.add_argument("-d", "--docking", help="(Both) Number of docking runs performed", default=20000,
+    parser.add_argument("-d", "--docking", help="(Both) Number of docking runs performed", default=10000,
                         type=int)
     parser.add_argument("-p", "--pmhc", help="(Flex) Number of pmhc relax runs", default=100,
                         type=int)

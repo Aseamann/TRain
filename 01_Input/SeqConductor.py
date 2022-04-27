@@ -1,7 +1,7 @@
 # This file is a part of the TRain program
 # Author: Austin Seamann & Dario Ghersi
 # Version: 0.1.1
-# Last Updated: January 12th, 2022
+# Last Updated: April 27th, 2022
 
 import argparse
 import pandas
@@ -267,14 +267,14 @@ def if_gap(front, end, region, gap_count):  # Check for cdr len in previous meth
 # Method: 07 - append_constant
 # Input: tcr_seq_dic - dictionary of tcr components clone_id: alpha, beta, [other parts]
 # Output: Updated tcr_seq_dic with alpha and beta chains replaced with concatenated constant regions
-def append_constant(tcr_seq_dic, organism):
+def append_constant(tcr_seq_dic, organism, alpha, beta):
     constant_dic = create_constant_dic(organism)
     for tcr_id in tcr_seq_dic:
         for segment in constant_dic:
-            if constant_dic[segment][0].startswith("TRAC*01") and constant_dic[segment][1] == "EX1":
-                tcr_seq_dic[tcr_id][0] = tcr_seq_dic[tcr_id][0] + constant_dic[segment][2]
-            if constant_dic[segment][0].startswith("TRBC1*01") and constant_dic[segment][1] == "EX1":
-                tcr_seq_dic[tcr_id][1] = tcr_seq_dic[tcr_id][1] + constant_dic[segment][2]
+            if constant_dic[segment][0].startswith(alpha) and constant_dic[segment][1] == "EX1":
+                tcr_seq_dic[tcr_id][0] = tcr_seq_dic[tcr_id][0] + constant_dic[segment][2].replace("X", "")
+            if constant_dic[segment][0].startswith(beta) and constant_dic[segment][1] == "EX1":
+                tcr_seq_dic[tcr_id][1] = tcr_seq_dic[tcr_id][1] + constant_dic[segment][2].replace("X", "")
     return tcr_seq_dic
 
 
@@ -391,8 +391,9 @@ def parse_args():
                         action="store_true")
     parser.add_argument("-t", "--information", help="(Output) Creates information table of constructed TCR seq."
                         , default=True, action="store_true")
-    parser.add_argument("-g", "--genefamily", help="Replacement gene family segment file", default="family_seq.fasta"
-                        , type=str)
+    parser.add_argument("-g", "--genefamily",
+                        help='Replacement gene family segment file (if not homo sapiens) | Default = "family_seq.fasta"',
+                        default="family_seq.fasta", type=str)
     parser.add_argument("-c", "--columns",
                         help="Positions of gene segments: Clone ID,AV,CDR3a,AJ,BV,CDR3b,BJ | Can exclude Clone ID",
                         default="0,1,2,3,4,5,6", type=str)  # Our data 3,4,5,7,8,9,11
@@ -400,6 +401,10 @@ def parse_args():
                         action="store_true")
     parser.add_argument("-r", "--organism", help="Updated Organism",
                         default="homo sapiens", type=str)
+    parser.add_argument("-y", "--alpha", help='Alpha Chain: Constant region alternative | Deafult = "TRAC*01"',
+                        type=str, default="TRAC*01")
+    parser.add_argument("-z", "--beta", help='Beta Chain: Constant region alternative | Deafult = "TRBC1*01"', type=str,
+                        default="TRBC1*01")
     parser.add_argument("-m", "--omission", help="Characters to avoid in header id for fasta file submission | comma"\
                         "sep.", type=str, default="")
     parser.add_argument("-v", "--verbose", help="Show alignments being produced", default=False, action="store_true")
@@ -416,7 +421,7 @@ def main():
         global silent
         silent = True
     # create dictionary for program to pull gene family information from
-    create_gene_dic(args.genefamily, args.organism)
+    create_gene_dic(args.genefamily, args.organism, args.alpha, args.beta)
     # create tcr dictionary containing each segment
     tcr_dic = get_tcr_info(args.single_cell_table, args.sheet, [int(i) for i in args.columns.split(",")])
     # create full tcr sequences

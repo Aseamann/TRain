@@ -1,7 +1,19 @@
-# This file is a part of the TRain program
-# Author: Austin Seamann, Dario Ghersi, and Ryan Ehrlich
-# Version: 0.1.1
-# Last Updated: March 21st, 2022
+#!/usr/bin/python3
+
+######################################################################
+# PDB_Tools_V3.py -- A component of TRain                            #
+# Copyright: Austin Seamann, Dario Ghersi, and Ryan Ehrlich          #
+# Version: 0.1                                                       #
+# Last Updated: June 26th, 2022                                      #
+# Goal: Be a tool that is resourceful for working with PDB files in  #
+#       general and for the specific use of T-cell Receptor          #
+#       PDB files.                                                   #
+#                                                                    #
+# Positional argument: PDB File in Use                               #
+# Named arguments: SEE -h LIST IN CONSOLE OR VISIT BOTTOM OF FILE    #
+######################################################################
+
+
 import argparse
 from math import sqrt, pow
 import statistics
@@ -14,7 +26,9 @@ from Bio.Align import substitution_matrices
 import Bio.PDB
 import os
 
-# Global
+#################
+#     Global    #
+#################
 # PDB indices
 AA = [19, 70]
 POSX = [30, 38]
@@ -25,28 +39,69 @@ POSSEQ = [22, 26]
 POSCHAIN = 21
 ChainID = 11
 
+
+#################
+#    Methods    #
+#################
 class PdbTools3:
     # initialize PdbTools
     def __init__(self, file="..."):
+        """
+        Initialize PdbTools
+
+        Parameters
+        __________
+        file : str
+            PDB file in use
+        """
         self.file_name = file
         self.test_list = {}
 
-    # method for changing PDB file
     def set_file_name(self, file_name_in):
+        """
+        Method for changing PDB file in use
+
+        Parameters
+        __________
+        file_name_in : str
+            name of new PDB to be in use
+
+        """
         self.file_name = file_name_in
 
-    # Returns file name currently in use
     def get_file_name(self):
+        """
+        Returns file name currently in use
+
+        Returns
+        _______
+        file_name : str
+            name of PDB file
+        """
         return self.file_name
 
-    # Returns the pdbID of file
     def get_pdb_id(self):
+        """
+        Returns the PDB ID of file
+
+        Returns
+        _______
+        PDB id based on the text in the header of PDB
+        """
         with open(self.file_name, 'r') as file:
             output = file.readline()
             return output[62:66].lower()
 
     # Returns a list of all chains in PDB file
     def get_chains(self):
+        """
+        Returns a list of all chains in PDB file
+
+        Returns
+        _______
+        chains : list
+            List of chains contained in PDB file
+        """
         chains = []
         with open(self.file_name, 'r') as file:
             for line in file:
@@ -56,8 +111,15 @@ class PdbTools3:
         return chains
 
     def get_resolution(self):
+        """
+        Reads the PDB for the resolution of the file
+
+        Returns
+        -------
+        output : float
+            Resolution of file if contained in PDB file
+        """
         value = ''
-        output = -1
         with open(self.file_name, 'r') as file:
             flag = False
             for line in file:
@@ -71,8 +133,19 @@ class PdbTools3:
         output = float(value)
         return output
 
-    # Returns a string of amino acids in a specific chain as a string in single letter notation
     def get_amino_acid_on_chain(self, chain):
+        """
+        Returns a string of amino acids in a specific chain as a string in single letter notation
+
+        Parameters
+        ----------
+        chain : str
+
+        Returns
+        -------
+        output : str
+            String of aa's in single letter formatting
+        """
         output = ''
         count = 0
         flag = True
@@ -91,8 +164,19 @@ class PdbTools3:
                             count = int(line[23:26])
         return output
 
-    # Returns a dictionary for the first atom of a chain.
     def first_atom_on_chain(self, chain):
+        """
+        Returns a dictionary for the first atom of a chain.
+
+        Parameters
+        ----------
+        chain : str
+
+        Returns
+        -------
+        atom : dict
+            Contains elements of the first atom in a chain
+        """
         with open(self.file_name, 'r') as file:
             for line in file:
                 if line[0:6] == 'ATOM  ':
@@ -110,8 +194,19 @@ class PdbTools3:
                                 'Y': float(line[38:46]), 'Z': float(line[46:54]), 'occupancy': float(line[55:60])}
                         return atom
 
-    # Converts three letter AA to single letter abbreviation
     def three_to_one(self, three):
+        """
+        Converts three letter AA to single letter abbreviation
+
+        Parameters
+        ----------
+        three : str
+            Three letter abbreviation of amino acid
+
+        Returns
+        -------
+        Converted amino acid format
+        """
         translate = {
             'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D', 'ASX': 'B', 'CYS': 'C', 'GLU': 'E',
             'GLN': 'Q', 'GLX': 'Z', 'GLY': 'G', 'HIS': 'H', 'ILE': 'I', 'LEU': 'L', 'LYS': 'K',
@@ -122,8 +217,20 @@ class PdbTools3:
             if three.upper() == key:
                 return translate[key]
 
-    # Returns a dictionary with elements related to specific atom number entered
     def get_atom(self, atom_num):
+        """
+        Returns a dictionary with elements related to specific atom number entered
+
+        Parameters
+        ----------
+        atom_num : int
+            Integer value for atom in file
+
+        Returns
+        -------
+        atom : dict
+            Dictionary containing information for atom from PDB file
+        """
         with open(self.file_name, 'r') as file:
             for line in file:
                 if line[0:6] == 'ATOM  ':
@@ -141,8 +248,20 @@ class PdbTools3:
                                 'Y': float(line[38:46]), 'Z': float(line[46:54]), 'occupancy': float(line[55:60])}
                         return atom
 
-    # Returns the Euclidean distance between two atoms based with atom_id being sent in as the parameter
     def euclidean_of_atoms(self, atom_num_1, atom_num_2):
+        """
+        Returns the Euclidean distance between two atoms based with atom_id being sent in as the parameter
+
+        Parameters
+        ----------
+        atom_num_1 : int
+        atom_num_2 : int
+
+        Returns
+        -------
+        euclidean_distance : float
+            Distance between two atoms in angstroms
+        """
         atom_1 = self.get_atom(atom_num_1)
         atom_2 = self.get_atom(atom_num_2)
         euclidean_distance = sqrt((atom_2['X'] - atom_1['X'])**2 + (atom_2['Y'] - atom_1['Y'])**2
@@ -151,6 +270,18 @@ class PdbTools3:
 
     # Collect the atoms from an inputted chain. Provides all values in PDB file
     def get_atoms_on_chain(self, chain):
+        """
+        Collect the atoms from an inputted chain. Provides all values in PDB file
+
+        Parameters
+        ----------
+        chain : str
+
+        Returns
+        -------
+        atoms : list
+            List of atoms based on the chain submitted
+        """
         atoms = []
         with open(self.file_name, 'r') as file:
             for line in file:
@@ -168,8 +299,18 @@ class PdbTools3:
                                 'Y': float(line[38:46]), 'Z': float(line[46:54]), 'occupancy': float(line[55:60])})
         return atoms
 
-    # Rebuilt lines for atoms information submitted
     def rebuild_atom_line(self, atoms):
+        """
+        Rebuild the string of an atom based on atom dictionary element of PDB_Tools
+
+        Parameters
+        ----------
+        atoms : int
+
+        Returns
+        -------
+        output : str
+        """
         output = ""
         for atom in atoms:
             # Reformat ATOM lines - Write this in separate method
@@ -185,9 +326,15 @@ class PdbTools3:
             output += line
         return output
 
-    # Returns alpha and beta chain IDs based on seq. alignment to 1a07 PDB entry chains. Confirms that it is a
-    # partnering TCR chain
     def get_tcr_chains(self):
+        """
+        Returns alpha and beta chain IDs based on seq. alignment to 1a07 PDB entry chains. Confirms that it is a
+        partnering TCR chain
+
+        Returns
+        -------
+        result : str
+        """
         aligner = Align.PairwiseAligner()
         aligner.mode = 'global'
         aligner.substitution_matrix = substitution_matrices.load('BLOSUM62')
@@ -227,15 +374,32 @@ class PdbTools3:
         result['BETA'] = beta[-1][1]
         return result
 
-    # Returns the amino acid sequence of either 'ALPHA' or 'BETA' chain as single letter AA abbreviation
     def get_tcr_amino_seq(self, tcr_type_in):
+        """
+        Returns the amino acid sequence of either 'ALPHA' or 'BETA' chain as single letter AA abbreviation
+
+        Parameters
+        ----------
+        tcr_type_in : str
+            'ALPHA' or 'BETA'
+
+        Returns
+        -------
+        String of amino acid contained in desired chain.
+        """
         tcr_dict = self.get_tcr_chains()
         for key in tcr_dict:
             if key == tcr_type_in:
                 return self.get_amino_acid_on_chain(tcr_dict[key])
 
-    # Returns the atoms on the peptide, peptide is determined by smallest chain
     def get_atoms_on_peptide(self):
+        """
+        Returns the atoms on the peptide, peptide is determined by smallest chain
+
+        Returns
+        -------
+        atoms : list
+        """
         atoms = []
         self.set_record_type('ATOM')
         file_atoms = self.record_report().splitlines()
@@ -246,8 +410,14 @@ class PdbTools3:
         atoms.pop(len(atoms) - 1)
         return atoms
 
-    # Returns the AA chain that is the peptide of the pMHC complex, based on the smallest chain in file
     def get_peptide_chain(self):
+        """
+        Returns the AA chain that is the peptide of the pMHC complex, based on the smallest chain in file
+
+        Returns
+        -------
+        peptide : str
+        """
         chains = self.get_chains()
         chain_dic = {}
         peptides = []
@@ -275,9 +445,14 @@ class PdbTools3:
                 position += 1
         return peptide
 
-    # Returns the MHC chain - based on COMPND section labeling HISTOCOMPATIBILITY ANTIGEN
-    # WILL LATER CONVERT THIS TO HOW I CHECK FOR TCR CHAINS
     def get_mhc_chain(self):
+        """
+        Returns the MHC chain based on a sequence alignment to a hardcoded MHC chain
+
+        Returns
+        -------
+        mhc chain id
+        """
         aligner = Align.PairwiseAligner()
         aligner.mode = 'global'
         aligner.substitution_matrix = substitution_matrices.load('BLOSUM62')
@@ -295,8 +470,14 @@ class PdbTools3:
         mhc = sorted(tmp_mhc)
         return mhc[-1][1]
 
-    # Return the Beta-2 Microglobulin - based on alignment to reference 1ao7 B2M
     def get_b2m_chain(self):
+        """
+        Return the Beta-2 Microglobulin - based on alignment to reference 1ao7 B2M
+
+        Returns
+        -------
+        b2m chain id
+        """
         aligner = Align.PairwiseAligner()
         aligner.mode = 'global'
         aligner.substitution_matrix = substitution_matrices.load('BLOSUM62')
@@ -318,6 +499,14 @@ class PdbTools3:
         return sorted(b2ms)[0]
 
     def renumber_docking(self, rename="****"):
+        """
+        Return a TCR PDB with chains and atoms renumber for rosettadock.
+
+        Parameters
+        ----------
+        rename : str
+            Optional updated naming to PDB file being created
+        """
         if rename != '****':  # Renames if given input, if not writes over file
             tcr = rename
         else:
@@ -354,8 +543,15 @@ class PdbTools3:
                         f1.write(line + '\n')
             f1.write("END\n")
 
-    # Returns a reformatted PDB with just the TCR atom cord. and has relabeled chains with ALPHA = A; BETA = B
     def clean_tcr(self, dir_start='****'):
+        """
+        Returns a reformatted PDB with just the TCR atom cord. and has relabeled chains with ALPHA = A; BETA = B
+
+        Parameters
+        ----------
+        dir_start : str
+            Choose what directory to save PDB
+        """
         if dir_start != '****':
             tcr = dir_start + '%s_tcr.pdb' % (self.get_pdb_id())
         else:
@@ -388,10 +584,17 @@ class PdbTools3:
             for line in output:
                 f1.write(line)
 
-    # Returns a reformatted PDB with just the TCR atom cord. and has relabeled chains with ALPHA = A; BETA = B
-    # Also uses trimmed TCR seq.
-    # New count on amino acids so each chain starts at 1
     def clean_tcr_count_trim(self, dir_start='****'):
+        """
+        Returns a reformatted PDB with just the TCR atom cord. and has relabeled chains with ALPHA = A; BETA = B
+        Also uses trimmed TCR seq.
+        New count on amino acids so each chain starts at 1
+
+        Parameters
+        ----------
+        dir_start : str
+            Choose what directory to save PDB
+        """
         if dir_start != '****':
             tcr = dir_start + '%s_tcr.pdb' % (self.get_pdb_id())
         else:
@@ -454,8 +657,10 @@ class PdbTools3:
             for line in output:
                 f1.write(line)
 
-    # Creates a new PDB file with information for only the MHC of the original PDB file
     def split_mhc(self):
+        """
+        Creates a new PDB file with information for only the MHC of the original PDB file
+        """
         tcr = self.get_pdb_id() + ".pdb"
         mhc = self.get_mhc_chain()
         helix_count = 0
@@ -503,8 +708,10 @@ class PdbTools3:
             for line in output:
                 f1.write(line)
 
-    # Creates a new PDB file with information for only the peptide of the original PDB file
     def split_p(self):
+        """
+        Creates a new PDB file with information for only the peptide of the original PDB file
+        """
         tcr = '%s.pdb' % (self.get_pdb_id())
         peptide = self.get_peptide_chain()
         helix_count = 0
@@ -552,9 +759,16 @@ class PdbTools3:
             for line in output:
                 f1.write(line)
 
-    # Creates a new PDB file with information for only the peptide of the original PDB file
-    # Doesn't update numbering
     def split_pmhc(self, update_name="..."):
+        """
+        Creates a new PDB file with information for only the peptide and MHC chains of the original PDB file
+        Doesn't update numbering
+
+        Parameters
+        ----------
+        update_name : str
+            Optional naming for created PDB file
+        """
         if update_name == "...":
             pmhc = 'pmhc.pdb'  # name of resulting file
         else:
@@ -576,10 +790,19 @@ class PdbTools3:
             for line in output:
                 f1.write(line)
 
-    # Creates a new PDB file with information for only the peptide of the original PDB file
-    # Doesn't update numbering
-    # Assumes Alpha and Beta are D & E
     def split_tcr(self, update_name="...", assume_rename=False):
+        """"
+        Creates a new PDB file with information for only the peptide of the original PDB file
+        Doesn't update numbering
+        Assumes Alpha and Beta are D & E
+
+        Parameters
+        __________
+        update_name : str
+            Optional naming for created PDB file
+        assume_rename : boolean
+            Assume that the TCR chains are labeled D and E
+        """
         if update_name == "...":
             tcr = 'tcr.pdb'  # name of resulting file
         else:
@@ -604,6 +827,14 @@ class PdbTools3:
                 f1.write(line)
 
     def clean_docking_count(self, rename='****'):
+        """
+        Provide a PDB with updated number for a TCR PDB file
+
+        Parameters
+        ----------
+        rename : str
+            Optional naming for created PDB file
+        """
         POSSEQ = [22, 26]
         ANUM = [6, 11]
         CHAINID = 21
@@ -647,8 +878,61 @@ class PdbTools3:
                                 o.write(line)
                 o.write('TER\nEND\n')
 
-    # Returns a reformatted PDB with just the primary TCRpMHC labeled A: MHC, B: B2M, C: Pep, D: Alpha, E: Beta
+    def clean_docking_count_non_tcr(self, rename="****"):
+        """
+        Provide a PDB with updated number for a PDB file (Not specific to a TCR)
+
+        Parameters
+        ----------
+        rename : str
+            Optional naming for created PDB file
+        """
+        POSSEQ = [22, 26]
+        ANUM = [6, 11]
+        CHAINID = 21
+
+        if rename != '****':
+            renum_name = rename
+        else:
+            renum_name = self.file_name[:-4] + "_renum.pdb"  # Default naming if no input
+        atom_count = 1  # Keeps track of atom number
+        old_res_count = -10000
+        res_count = 0  # Keeps track of residue number
+        chains = []  # Chains to keep track of previous
+        header = False  # Marks down header
+        with open(self.file_name, "r") as i:
+            with open(renum_name, 'w+') as o:
+                for line in i:
+                    if line[0:6] == 'HEADER':
+                        o.write(line)
+                        header = True  # Marks header
+                    if header:
+                        o.write('EXPDTA    DOCKING MODEL           RENUMBERED\n')
+                        header = False  # Marks EXPDTA
+                    if line[0:6] == 'ATOM  ':  # Only writes over atoms
+                        if line[16] != 'B' and line[26] == ' ':  # Don't allow secondary atoms
+                            temp_num = line[ANUM[0]:ANUM[1]]  # Saves temp old atom count
+                            temp_res = int(line[POSSEQ[0]:POSSEQ[1]])  # Saves temp old res count
+                            if len(chains) == 0:
+                                chains.append(line[CHAINID])
+                            elif line[CHAINID] != chains[-1]:  # Catches when a new chain starts
+                                chains.append(line[CHAINID])
+                                o.write('TER\n')
+                            if temp_res != old_res_count:  # Increases residue count
+                                old_res_count = int(line[POSSEQ[0]:POSSEQ[1]])
+                                res_count += 1
+                            # Replaces atom count
+                            line = line.replace(temp_num, str(atom_count).rjust(5), 1)
+                            atom_count += 1
+                            # Replaces residue count on line
+                            line = line[:22] + str(res_count).rjust(4) + line[26:]
+                            o.write(line)
+                o.write('TER\nEND\n')
+
     def clean_pdb(self):
+        """
+        Returns a reformatted PDB with just the primary TCRpMHC labeled A: MHC, B: B2M, C: Pep, D: Alpha, E: Beta
+        """
         tcr_list = self.get_tcr_chains()
         atom_count = 0
         atom_flag = False  # Catch when atom and ter section is done to append tcr alpha and beta chains
@@ -707,9 +991,16 @@ class PdbTools3:
             for line in output:
                 f1.write(line)
 
-    # Appends to a fasta formatted file of PDB file submitted.
-    # Adds sequence of alpha then beta chain
     def fasta_TCR(self, file_name='result.fasta'):
+        """
+        Appends to a fasta formatted file of PDB file submitted.
+        Adds sequence of alpha then beta chain
+
+        Parameters
+        ----------
+        file_name : str
+            Optinal naming of fasta file output
+        """
         tcr_alpha_chain = self.get_amino_acid_on_chain(self.get_tcr_chains()['ALPHA'])
         tcr_beta_chain = self.get_amino_acid_on_chain(self.get_tcr_chains()['BETA'])
         total_chain = tcr_alpha_chain + tcr_beta_chain
@@ -727,9 +1018,19 @@ class PdbTools3:
                         count_1 = 2
                 f.write('\n')
 
-    # Unmutes atoms of amino acid positions to untrim tcr based on left, right, and chain_id
-    # Assign left_aa = 0 and right_aa = 1000 for universal chain unmute
     def unmute_aa(self, left_aa, right_aa, chain):
+        """
+        Unmutes atoms of amino acid positions to untrim tcr based on left, right, and chain_id
+        Assign left_aa = 0 and right_aa = 1000 for universal chain unmute
+
+        Parameters
+        ----------
+        left_aa : int
+            Left side of chain to mute
+        right_aa : int
+            Right side of chain to mute
+        chain : str
+        """
         range_aa = range(left_aa, right_aa + 1)
         with open(self.file_name, 'r') as r:
             data = r.readlines()
@@ -748,8 +1049,19 @@ class PdbTools3:
                 else:
                     w.write(line)
 
-    # Assign left_aa = 0 and right_aa = 1000 for universal chain mute
     def mute_aa(self, left_aa, right_aa, chain_id):
+        """
+        Mutes atoms of amino acid positions to trim tcr based on left, right, and chain_id
+        Assign left_aa = 0 and right_aa = 1000 for universal chain mute
+
+        Parameters
+        ----------
+        left_aa : int
+            Left side of chain to mute
+        right_aa : int
+            Right side of chain to mute
+        chain_id : str
+        """
         range_aa = range(left_aa + 1, right_aa + 1)
         with open(self.file_name, 'r') as r:
             data = r.readlines()
@@ -768,8 +1080,13 @@ class PdbTools3:
                 else:
                     w.write(line)
 
-    # Remove chain provided based on ID
     def remove_chain(self, chain_id):
+        """
+         Remove chain provided based on ID
+        Parameters
+        ----------
+        chain_id : str
+        """
         with open(self.file_name, 'r') as r:
             data = r.readlines()
         with open(self.file_name, 'w+') as w:
@@ -778,8 +1095,16 @@ class PdbTools3:
                     if line[21] != chain_id.upper():
                         w.write(line)
 
-    # Trims chain submitted with cutoff provided of AA count
     def trim_chain(self, chain_id, cutoff):
+        """
+        Trims chain submitted with cutoff provided of AA count
+
+        Parameters
+        ----------
+        chain_id : str
+        cutoff : int
+            Position in chain to cut
+        """
         output = []
         with open(self.file_name, "r") as i:
             for line in i:
@@ -793,8 +1118,18 @@ class PdbTools3:
             for line in output:
                 o.write(line)
 
-    # Splits chains given and renames with given suffix
     def split_chains(self, chains_in, suffix, dir_location='****'):
+        """
+        Splits chains given and renames with given suffix
+
+        Parameters
+        ----------
+        chains_in : str
+        suffix : str
+            Suffix of created file
+        dir_location : str
+            Optional submission of location of PDB file
+        """
         if dir_location == '****':
             new_pdb = self.get_file_name()
         else:
@@ -812,16 +1147,27 @@ class PdbTools3:
             for line in output:
                 f1.write(line)
 
-    # Superimpose two PDBs
-    # Goal: Read in target and reference structure, superimpose target to reference, save superimposed target structure
-    # Input:
-    #   ref_pdb: Location of reference PDB
-    #   target_order:
-    #   ref_order:
-    #   new_name_in: Optional name in for resulting superimposed positioning of target structure
-    # Output:
-    #   super_imposer.rms: RMSD value for all-atom RMSD
     def superimpose(self, ref_pdb, target_order, ref_order, new_name_in="..."):
+        """
+        Superimpose two PDBs
+        Read in target and reference structure, superimpose target to reference, save superimposed target structure
+
+        Parameters
+        ----------
+        ref_pdb : str
+            Location of reference PDB
+        target_order : str
+            Order of chains to compare in superimposing structures for target
+        ref_order : str
+            Order of chains to compare in superimposing structures for reference
+        new_name_in : str
+            Optional name in for resulting superimposed positioning of target structure
+
+        Returns
+        -------
+            super_imposer.rms: float
+                RMSD value for all-atom RMSD
+        """
         aligner = Align.PairwiseAligner()
         aligner.mode = 'local'
         aligner.gap_score = -100.00
@@ -953,16 +1299,27 @@ class PdbTools3:
         io.save(new_name)
         return super_imposer.rms
 
-    # Method: rmsd
-    # Goal: Calculate RMSD values between two PDBs - based on aligned aa's. Optional Carbon Alpha RMSD as well.
-    # Input:
-    #   ref_pdb: Reference PDB - can be same PDB as target
-    #   target_order: Target chains to consider for RMSD calculation - must be in same order
-    #   ref_order: Reference chains to consider for RMSD calculation - must be in same order
-    #   ca: True - only Alpha Carbon RMSD ; False - all-atom RMSD
-    # Output:
-    #   Calculated RMSD value
     def rmsd(self, ref_pdb, target_order, ref_order, ca=False, mute=False):
+        """
+        Calculate RMSD values between two PDBs - based on aligned aa's. Optional Carbon Alpha RMSD as well.
+
+        Parameters
+        ----------
+        ref_pdb : str
+            Reference PDB - can be same PDB as target
+        target_order : str
+            Target chains to consider for RMSD calculation - must be in same order
+        ref_order : str
+            Reference chains to consider for RMSD calculation - must be in same order
+        ca : boolean
+            True - only Alpha Carbon RMSD ; False - all-atom RMSD
+        mute : boolean
+            Don't print text, only return when called
+
+        Returns
+        -------
+        rmsd : float
+        """
         target_atoms = {}  # chain: atoms
         ref_atoms = {}  # chain: atoms
         target_aa = {}  # chain: aa's
@@ -1051,6 +1408,14 @@ class PdbTools3:
         return centroid
 
     def center(self, new_name_in="..."):
+        """
+        Gather all atoms in the file and calculate the average XYZ coord to find the center of the structure
+
+        Parameters
+        ----------
+        new_name_in : str
+            Optional name for new PDB created by method with centered structure
+        """
         atoms = []
         full_atom = []
         # Collect atom information from PDB
@@ -1107,16 +1472,20 @@ class PdbTools3:
         with open(new_name, "w") as f:
             # Send to reconstruct atom lines
             f.write(self.rebuild_atom_line(full_atom))
-        # --- Bug testing ---Print initial center coord.
-        # print("Previous Center")
-        # print(self.get_center())
-        # # Print updated center coord.
-        # print("Center")
-        # self.set_file_name(new_name)
-        # print(self.get_center())
 
-    # Joins together two PDB files by appending first PDBs atoms to second PDBs atoms
     def join(self, pdb_1, pdb_2, new_name):
+        """
+        Joins together two PDB files by appending first PDBs atoms to second PDBs atoms
+
+        Parameters
+        ----------
+        pdb_1 : str
+            Location and name of PDB 1
+        pdb_2 : str
+            Location and name of PDB 2
+        new_name : str
+            Name of new file
+        """
         atoms_lines = []
         pdbs = [pdb_1, pdb_2]
         for pdb in pdbs:
@@ -1129,8 +1498,15 @@ class PdbTools3:
                 f2.write(line)
         return new_name
 
-    # Update the chain order. Must send in a list with identical number of chains
     def reorder_chains(self, chain_order):
+        """
+        Update the chain order. Must send in a list with identical number of chains
+
+        Parameters
+        ----------
+        chain_order : str
+            Order in which you want the chains to be in the file
+        """
         current = self.get_chains()
         chain_info = {}
         new_order = []
@@ -1142,9 +1518,16 @@ class PdbTools3:
         with open(self.file_name, "w") as f1:
             f1.write(self.rebuild_atom_line(new_order))
 
-    # Update the labels based on submitted chain dictionary
-    # Ex of dictionary: {'A':'D', 'B':'E'}  A gets replaced with D and B gets replaced with E
     def update_label(self, label_dic):
+        """
+        Update the labels based on submitted chain dictionary
+        Ex of dictionary: {'A':'D', 'B':'E'}  A gets replaced with D and B gets replaced with E
+
+        Parameters
+        ----------
+        label_dic : dict
+            Dictionary of label names that need to be adjusted
+        """
         current = self.get_chains()
         chain_info = {}
         new_order = []
@@ -1158,9 +1541,16 @@ class PdbTools3:
             f1.write(self.rebuild_atom_line(new_order))
 
     # Below CDR methods are adapted from Ryan Ehrlich's code
-    # Primary method
-    # Returns CDR1a, CDR2a, CDR2.5a, CDR3, CDR1b, CDR2b, CDR2.5b, CDR3b
     def pull_cdr(self):
+        """
+        Primary method
+        Returns CDR1a, CDR2a, CDR2.5a, CDR3, CDR1b, CDR2b, CDR2.5b, CDR3b
+
+        Returns
+        -------
+        alpInds
+        betInds
+        """
         from getCDRs import cdr_loops
         trav, trbv = cdr_loops()  # get germline dictionary
         # loops = CdrLoopInfo(self.get_file_name())
@@ -1170,8 +1560,14 @@ class PdbTools3:
         alpInds, betInds = self.loopPositions(aseq, apos, trav), self.loopPositions(bseq, bpos, trbv)
         return alpInds, betInds
 
-    # Helper method to pull_cdr()
     def getLines(self):
+        """
+        Helper method to pull_cdr()
+
+        Returns
+        -------
+        seq_dict
+        """
         alpha = ['D']
         beta = ['E']
         data = open(self.get_file_name(), 'r')
@@ -1190,8 +1586,15 @@ class PdbTools3:
                         seq_dict['beta'].append(resID)
         return seq_dict
 
-    # Helper method to pull_cdr()
-    def getSeqs(self, dict):  # return seq of pdb chains (tcr) as well as pos_chain
+    def getSeqs(self, dict):
+        """
+        Helper method to pull_cdr()
+        return seq of pdb chains (tcr) as well as pos_chain
+
+        Parameters
+        ----------
+        dict : dict
+        """
         # triple letter abbreviation for amino acids
         aa_names = [
             "ALA", "CYS", "ASP", "GLU", "PHE", "GLY", "HIS", "ILE", "LYS", "LEU",
@@ -1217,8 +1620,19 @@ class PdbTools3:
                     bet_inds.append(seq[r][4:-2])
         return ''.join(alp), ''.join(bet), alp_inds, bet_inds
 
-    # Helper method to pull_cdr()
     def getCDR3(self, seq, germline):
+        """
+        Helper method to pull_cdr()
+
+        Parameters
+        ----------
+        seq : str
+        germline : str
+
+        Returns
+        -------
+        cdr3 : str
+        """
         start = germline.rfind('C')  # get ind of C from CDR dict
         check = germline.find(seq[5:10])  # reference start point in germline
         diff = check - 5  # difference between seq and germline start
@@ -1240,8 +1654,20 @@ class PdbTools3:
             cdr3 = seq_
         return (cdr3)
 
-    # Helper method to pull_cdr()
     def loopPositions(self, seq, resNums, trv):
+        """
+        Helper method to pull_cdr()
+
+        Parameters
+        ----------
+        seq
+        resNums
+        trv
+
+        Returns
+        -------
+        loopInfo
+        """
         cdrList = []
         for key in trv:
             loops = trv.get(key)
@@ -1257,12 +1683,15 @@ class PdbTools3:
             loopInfo.append([loop, int(start), int(end)])
         return (loopInfo)
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("pdb", help="Full crystal structure", type=str)
     parser.add_argument("--get_tcr", help="Returns the TCR chain ids", default=False, action="store_true")
     parser.add_argument("--get_mhc", help="Returns the mhc chain id", default=False, action="store_true")
     parser.add_argument("--renum", help="Updates numbering of TCR for docking", default=False, action="store_true")
+    parser.add_argument("--renum2", help="Updates numbering for docking with non-tcr files", default=False,
+                        action="store_true")
     parser.add_argument("--trim", help="Trim TCR chains to only contain variable region", default=False,
                         action="store_true")
     parser.add_argument("--mhc_split", help="Only provide MHC chains", default=False, action="store_true")
@@ -1292,6 +1721,9 @@ def parse_args():
     return parser.parse_args()
 
 
+####################
+#     Controls     #
+####################
 def main():
     args = parse_args()
     pdb = PdbTools3(args.pdb)
@@ -1315,6 +1747,8 @@ def main():
         pdb.split_pmhc()
     if args.renum:
         pdb.clean_docking_count()
+    if args.renum2:
+        pdb.clean_docking_count_non_tcr()
     if args.peptide:
         print(pdb.get_peptide_chain())
     if args.mhc:

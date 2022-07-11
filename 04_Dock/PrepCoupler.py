@@ -1,7 +1,19 @@
-# This file is a part of the TRain program
-# Author: Austin Seamann & Dario Ghersi
-# Version: 0.1
-# Last Updated: January 12th, 2022
+#!/usr/bin/python3
+
+######################################################################
+# PrepCoupler.py -- A component of TRain                             #
+# Copyright: Austin Seamann & Dario Ghersi                           #
+# Version: 0.1                                                       #
+# Last Updated: January 12th, 2022                                   #
+# Goal: Prepare TCRpMHC file for RosettaDock4.0 and TCRcoupler.py.   #
+#       Renumber and relabel chains, center TCR, and separate        #
+#       the TCR from the pMHC. This is also managed in the controls  #
+#       by submitting to PDB_Tools_V3                                #
+#                                                                    #
+# Positional argument: Location of PBB file or directory of PDBs     #
+# Named arguments: NONE                                              #
+######################################################################
+
 
 import argparse
 from PDB_Tools_V3 import PdbTools3

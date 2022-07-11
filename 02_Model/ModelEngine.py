@@ -1,7 +1,28 @@
-# This file is a part of the TRain program
-# Author: Austin Seamann & Dario Ghersi
-# Version: 0.2
-# Last Updated: March 4th, 2022
+#!/usr/bin/python3
+
+######################################################################
+# ModelEngine.py -- A component of TRain                             #
+# Copyright: Austin Seamann & Dario Ghersi                           #
+# Version: 0.1                                                       #
+# Last Updated: March 4th, 2022                                      #
+# Goal: Submit TCR alpha and beta chain sequences to local install   #
+#       of TCRmodel included in Rosetta Suite of Programs            #
+#                                                                    #
+# Named arguments: -a --alpha (Location of FASTA file containing     #
+#                             alpha chains)                          #
+#                  -b --beta (Location of FASTA file containing beta #
+#                            chains)                                 #
+#                  -r --refine (Model with CDR3 loop refinement)     #
+#                  -s --start (Starting PDB in FASTA file (ALPHA))   #
+#                  -d --dir (Change standard output director for     #
+#                           resulting modeled TCRs)                  #
+#                  -v --verbose (Readout output from TCRmodel)       #
+#                  -m --multi (Split up load to multiple cores)      #
+#                  -c --cpus (Number of CPUs allocated | default=all)#
+#                  -u --cutoff (Sequence similarity cutoff for       #
+#                               templates | default=100)             #
+######################################################################
+
 
 import argparse
 import subprocess
@@ -9,8 +30,27 @@ import os
 import concurrent.futures
 
 
-# Read in alpha and beta fasta files and generate tcr_seqs dictionary
+#################
+#    Methods    #
+#################
 def read_fastas(alpha_in, beta_in, start_pdb):
+    """
+    Read in alpha and beta fasta files and generate tcr_seqs dictionary
+
+    Parameters
+    __________
+    alpha_in : str
+        alpha chain fasta file
+    beta_in : str
+        beta chain fasta file
+    start_pdb : str
+        optional start position in file for modeling
+
+    Returns
+    _______
+    tcr_seqs : dict
+        dictionary containing reference to each chain, each header, and each sequence
+    """
     # Dictionary created (e.g. tcr_seqs[CHAIN][HEADER] = seq)
     list_files = {"ALPHA": alpha_in, "BETA": beta_in}
     tcr_seqs = {"ALPHA": {}, "BETA": {}}
@@ -37,6 +77,18 @@ def read_fastas(alpha_in, beta_in, start_pdb):
 
 
 def run_pars(pars, verbose, header):
+    """
+    Run the subprocess based on submitted parameters
+
+    Parameters
+    __________
+    pars : list
+        list of parameters in the correct order needed to run tcrmodel
+    verbose : boolean
+        if true, allow subprocess to output to terminal
+    header : str
+        current pdb being modeled
+    """
     print("Modeling: " + header)
     if verbose:
         subprocess.run(pars)
@@ -46,6 +98,26 @@ def run_pars(pars, verbose, header):
 
 
 def run_tcrmodel(tcr_seqs, rosetta_loc, refine, verbose, multi, cpu_count, cutoff):
+    """
+    Manage submission to local install of TCRmodel
+
+    Parameters
+    __________
+    tcr_seqs : dict
+        dictionary containing reference to each chain, each header, and each sequence
+    rosetta_loc : str
+        location of local rosetta scripts
+    refine : boolean
+        if true, run additional refinement on CDR3 loops
+    verbose : boolean
+        if true, allow subprocess to output to terminal
+    multi : boolean
+        if true, submit to TCRmodel using python ProcessPoolExecutor to run on multiple cores
+    cpu_count : int
+        number of cpu's to allocate for producing models
+    cutoff : int
+        sequence similarity cutoff for model templates
+    """
     count = 0
     header_count = {}  # Count_id: Header
     with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:

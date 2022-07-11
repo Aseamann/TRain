@@ -1,7 +1,26 @@
-# This file is a part of the TRain program
-# Author: Austin Seamann & Dario Ghersi
-# Version: 0.1
-# Last Updated: January 12th, 2022
+#!/usr/bin/python3
+
+######################################################################
+# TurnTable.py -- A component of TRain                               #
+# Copyright: Austin Seamann & Dario Ghersi                           #
+# Version: 0.1                                                       #
+# Last Updated: January 12th, 2022                                   #
+# Goal: Turn table takes the input of modeled or crystal structure   #
+#       PDBs to construct of PDB with a TCR paired with a pMHC in a  #
+#       specified manor for RosettaDock4.0                           #
+#                                                                    #
+# Named arguments: -t --tcr (TCR PDB file or folder of TCR PDBs)     #
+#                  -p --pmhc (pMHC PDB file or folder of pMHC PDBs)  #
+#                  -d --pdbs (Submit folder of PDBs and all TCRs and #
+#                             will be swapped)                       #
+#                  -a --trimA (Trim TCR alpha, needed if full        #
+#                             crystal structure: variable + constant)#
+#                  -b --trimB (Trim TCR beta, needed if full crystal #
+#                             structure: variable + constant)        #
+#                  -m --trimM (Prevent trimming of MHC)              #
+######################################################################
+
+
 import argparse
 from PDB_Tools_V3 import PdbTools3
 import os
@@ -17,10 +36,20 @@ tool = PdbTools3()  # Initialize PDB tools
 #################
 #    Methods    #
 #################
-# Method: align_chains()
-# Goal: Prepares cmd file and submits to run_chimera for aligning pdb to reference
-#       and producing a separated protein and peptide pdb.
 def align_chains(tcr_file, pmhc_file, final_name):
+    """
+    Prepares cmd file and submits to run_chimera for aligning pdb to reference
+    and producing a separated protein and peptide pdb.
+
+    Parameters
+    __________
+    tcr_file : str
+        location of tcr pdb
+    pmhc_file : str
+        location of pmhc pdb
+    final_name : str
+        name of resulting paired TCRpMHC file
+    """
     tool.set_file_name("reference.pdb")
     tool.superimpose(tcr_file, "DE", "DE", "reference_tmp.pdb")
     tool.set_file_name(pmhc_file)
@@ -29,9 +58,27 @@ def align_chains(tcr_file, pmhc_file, final_name):
     os.remove("reference_tmp.pdb")
 
 
-# Method: tcr_pmhc_pair()
-# Goals: Pair tcr(s) and pmhc(s) submitted. Determines if single file is submitted of either or directory of either.
 def tcr_pmhc_pair(tcr_dir, pmhc_dir, tcr_multi, pmhc_multi, trim_a, trim_b, trim_m):
+    """
+    Goals: Pair tcr(s) and pmhc(s) submitted. Determines if single file is submitted of either or directory of either.
+
+    Parameters
+    __________
+    tcr_dic : str
+        directory of the location of the TCR pdb or TCR pdb folder
+    pmhc_dir : str
+        directory of the location of the pMHC pdb or pMHC pdb folder
+    tcr_multi : boolean
+        if true, a folder of TCR pdbs has been submitted
+    pmhc_multi : boolean
+        if true, a folder of pMHC pdbs has been submitted
+    trim_a : boolean
+        if true, trim alpha chain to just the variable region
+    trim_b : boolean
+        if true, trim beta chain to just the variable region
+    trim_m : boolean
+        if true, don't trim the MHC chain
+    """
     directory = os.getcwd()
     # Full directory locations of TCRs and pMHCs
     locations = {"TCR": [], "pMHC": []}

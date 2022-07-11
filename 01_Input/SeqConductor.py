@@ -1,7 +1,37 @@
-# This file is a part of the TRain program
-# Author: Austin Seamann & Dario Ghersi
-# Version: 0.1.1
-# Last Updated: April 27th, 2022
+#!/usr/bin/python3
+
+######################################################################
+# SeqConductor.py -- A component of TRain                            #
+# Copyright: Austin Seamann & Dario Ghersi                           #
+# Version: 0.1                                                       #
+# Last Updated: April 27th, 2022                                     #
+# Goal: Take in gene segments and CDR3 regions of TCR chains and     #
+#        produce full amino acid sequences                           #
+#                                                                    #
+# Positional argument: Single Cell Table (XLSX or CSV)               #
+# Named arguments: -s --sheet SHEET NAME (Alternative sheet name if  #
+#                             not primary sheet in XLSX file)        #
+#                  -f --fasta (Output option -- Fasta output option) #
+#                  -t --information (Output option -- CSV output     #
+#                                   for information table results)   #
+#                  -g --genefamily (Replacement gene family segment  #
+#                                   if not homo sapiens)             #
+#                  -c --columns COMMA SEP LIST (Positions of gene    #
+#                               segments: Clone ID, AV, CDR3a, AJ,   #
+#                               BV, CDR3b, BJ)                       #
+#                  -a --append (Append chains with constant regions  #
+#                  -r --organism (Updated Organism - need for append #
+#                                 Default "homo sapiens")            #
+#                  -y --alpha (Alpha chain: constant region altern.  #
+#                              Default "TRAC*01")                    #
+#                  -z --beta (Beta chain: constant region altern.    #
+#                             Default "TRBC1*01")                    #
+#                  -m --omission COMMA SEP LIST (Characters to avoid #
+#                                in header id for fasta file)        #
+#                  -v --verbose (Show alignments being produced)     #
+#                  -l --silent (Mute even poor alignments)           #
+######################################################################
+
 
 import argparse
 import pandas
@@ -9,7 +39,7 @@ from Bio import Align
 
 
 #################
-# Global
+#     Global    #
 #################
 gene_dic = {}
 verbose = False
@@ -17,14 +47,24 @@ silent = False
 
 
 #################
-# Methods
+#    Methods    #
 #################
-# Method: 01 - create_gene_dic()
-# Input: fasta file containing IMGT data of gene segments of TCRs
-# Goal: Populate the gene dictionary from IMGT data.
-# Output:
-#   gene_dic: Gene Segment Name: AA Sequence
 def create_gene_dic(fasta_file, organism):
+    """
+    Populate the gene dictionary from IMGT data.
+
+    Parameters
+    __________
+    fasta_file : str
+        Fasta file containing IMGT data of gene segments of TCRs
+    organism : str
+        Organism name to pull from IMGT data file
+
+    Returns
+    _______
+    gene_dic : dict
+        Gene segment name -- AA sequence
+    """
     with open(fasta_file, "r") as family:
         temp_fam = ""  # Holds current gene segment name
         for line in family:
@@ -41,15 +81,24 @@ def create_gene_dic(fasta_file, organism):
     return gene_dic
 
 
-# Method: 02 - get_tcr_info()
-# Input:
-#   file: .xlsx or .csv file containing AV, AJ, BV, BJ, CDR3A, CDR3B
-#   sheet: optional parameter for .xlsx file to collect data from a secondary sheet (default="Sheet1")
-#   default positions: 3: cloneID, 4: AV, 5: CDR3A, 7: AJ, 8: BV, 9: CDR3B, 11: BJ
-# Goal: Create dictionary of components of TCR chains from table
-# Output:
-#   tcr_dic: clone ID Positions: 0 - TRAV, 1 - CDR3A, 2 - TRAJ, 3 - TRBV, 4 - CDR3B, 5 - TRBJ, clone ID - 6
 def get_tcr_info(file, sheet, positions):
+    """
+    Create dictionary of components of TCR chains from table
+
+    Parameters
+    __________
+    file : str
+        .xlsx or .csv file containing AV, AJ, BV, BJ, CDR3A, CDR3B
+    sheet : str
+        optional parameter for .xlsx file to collect data from a secondary sheet (default="Sheet1")
+    positions : str
+        3: cloneID, 4: AV, 5: CDR3A, 7: AJ, 8: BV, 9: CDR3B, 11: BJ
+
+    Returns
+    _______
+    tcr_dic : dict
+        clone ID Positions: 0 - TRAV, 1 - CDR3A, 2 - TRAJ, 3 - TRBV, 4 - CDR3B, 5 - TRBJ, clone ID - 6
+    """
     tcr_dic = {}  # Creates output dictionary
     clone_id_count = {}  # Keeps track of repeat clone ids
     previous_id = ""
@@ -100,22 +149,40 @@ def get_tcr_info(file, sheet, positions):
     return tcr_dic
 
 
-# Method: 03 - confirm_segment()
-# Input: List of gene segments w/ clone id position 0
-# Goal: Loop through gene segments of a clone id and return if a segment is not found in gene_dic
-# Output: Clone ID if gene segment not discovered
 def confirm_segment(seg_list):
+    """
+    Loop through gene segments of a clone id and return if a segment is not found in gene_dic
+
+    Parameters
+    __________
+    seg_list : lst
+        List of gene segments w/ clone id position 0
+
+    Returns
+    _______
+    confirm segment : boolean
+        True if gene segment discovered in gene_dic
+    """
     for seg in seg_list:
         if seg not in gene_dic.keys():
             return False
     return True
 
 
-# Method: 04 - make_tcr_seq()
-# Input: tcr_parts - dictionary containing each aa segment of TCR as constructed from get_tcr_info
-# Goal: Sends tcr parts into align_overlap to create resulting Alpha and Beta chain sequences.
-# Output: a dictionary with clone ID key and a list of Alpha and Beta chain sequences.
 def make_tcr_seq(tcr_parts):
+    """
+    Sends tcr parts into align_overlap to create resulting Alpha and Beta chain sequences.
+
+    Parameters
+    __________
+    tcr_parts : dict
+        dictionary containing each aa segment of TCR as constructed from get_tcr_info
+
+    Returns
+    _______
+    output_segs : dict
+        a dictionary with clone ID key and a list of Alpha and Beta chain sequences.
+    """
     output_seqs = {}
     # For each clone-id
     for each in tcr_parts:
@@ -161,6 +228,25 @@ def make_tcr_seq(tcr_parts):
 # Goal: Looks for overlap between front and end AAs besides when single AA overlap
 # Output: Resulting overlapped segments -- if == J: full TCR sequence
 def align_overlap(front, end, part, clone_id):
+    """
+    Looks for overlap between front and end AAs besides when single AA overlap
+
+    Parameters
+    __________
+    front : str
+        start of seq
+    end : str
+        end of seq
+    part : str
+        "V" or "J" depending on what segments are being overlapped to the cdr
+    clone_id : str
+        reference to what constant region to append to end of variable region sequence
+
+    Returns
+    _______
+    output : str
+        Resulting overlapped segments -- if == J and clone_id: full TCR sequence
+    """
     aligner = Align.PairwiseAligner()
     aligner.mode = 'local'
     best_align = []
@@ -244,15 +330,26 @@ def align_overlap(front, end, part, clone_id):
         return output
 
 
-# Method: 06 - if_gap()
-# Input:
-#   front -
-#   end -
-#   region -
-#   gap_count -
-# Goal:
-# Output: Find alignment of segments
 def if_gap(front, end, region, gap_count):  # Check for cdr len in previous method, send in if V or J region.
+    """
+    Determine if there are gaps in the alignments and where in the sequence it's located
+
+    Parameters
+    __________
+    front : str
+        start of seq
+    end : str
+        end of seq
+    region : str
+        "V" or "J" depending on what segments are being overlapped to the cdr
+    gap_count : int
+        location of gap
+
+    Returns
+    _______
+    seq : str
+        Adjusted aligned sequence
+    """
     temp_seq = ""
     if region == "V":  # When the variable region and cdr are being overlapped.
         for letter in front:
@@ -264,10 +361,26 @@ def if_gap(front, end, region, gap_count):  # Check for cdr len in previous meth
         return front + end[gap_count:]
 
 
-# Method: 07 - append_constant
-# Input: tcr_seq_dic - dictionary of tcr components clone_id: alpha, beta, [other parts]
-# Output: Updated tcr_seq_dic with alpha and beta chains replaced with concatenated constant regions
 def append_constant(tcr_seq_dic, organism, alpha, beta):
+    """
+    Take in the variable region sequence and append the constant region based on the organism name provided
+
+    Parameters
+    __________
+    tcr_seq_dic : dict
+        dictionary of tcr components clone_id: alpha, beta, [other parts]
+    organism : str
+        organism name provided by user
+    alpha : str
+        alpha chain constant region id
+    beta : str
+        beta chain constant region id
+
+    Return
+    ______
+    tcr_seq_dic : dict
+        updated dictionary with all tcr sequences appended with constant regions
+    """
     constant_dic = create_constant_dic(organism)
     for tcr_id in tcr_seq_dic:
         for segment in constant_dic:
@@ -278,12 +391,20 @@ def append_constant(tcr_seq_dic, organism, alpha, beta):
     return tcr_seq_dic
 
 
-# Method: 08 - create_gene_dic()
-# Input: fasta file containing IMGT data of constant region gene segments of TCRs
-# Goal: Populate the gene dictionary from IMGT data.
-# Output:
-#   constant_dic =
 def create_constant_dic(organism):
+    """
+    Populate the gene dictionary from IMGT data.
+
+    Parameters
+    __________
+    organism : str
+        name of organism provided by user
+
+    Returns
+    _______
+    constant_dic : dict
+        dictionary of the constant regions for the organism selected
+    """
     constant_dic = {}
     with open("constant_regions.fasta", "r") as f:
         temp_imgt_id = ""
@@ -318,12 +439,17 @@ def create_constant_dic(organism):
     return constant_dic
 
 
-# Method 07: make_info_table()
-# Input:
-#   tcr_dic - resulting clone ids and tcr information
-#   file_in - optional file name for information table
-# Output: Table with clone id, AV, CDR3a, AJ, BV, CDR3b, BJ, full alpha seq, full beta seq (csv)
 def make_info_table(tcr_dic, file_in="translated_seq.csv"):
+    """
+    Create information table to return to the use with details about the constructed TCR sequences
+
+    Parameters
+    __________
+    tcr_dic : dict
+        resulting clone ids and tcr information
+    file_in : str
+        optional file name for information table
+    """
     if "/" in file_in:
         file_in = file_in.split("/")[-1]
     with open(file_in, "w") as f:  # Open file, name is set by default but can be changed
@@ -335,16 +461,21 @@ def make_info_table(tcr_dic, file_in="translated_seq.csv"):
             f.write(each + "," + ",".join(info) + "," + ",".join(chains) + "\n")
 
 
-# Method 08: make_fasta_files()
-# Input:
-#   alpha_file - name of alpha chain file
-#   beta_file - name of beta chain file
-#   tcr_dic - dictionary of all tcrs
-#   character_list - list of characters to not include in fasta header id
-# Output:
-#   alpha_file - outputted fasta file for alpha chains
-#   beta_file - outputted fasta file for beta chains
 def make_fasta_files(alpha_file, beta_file, tcr_dic, character_list):
+    """
+    Create alpha.fasta and beta.fasta - containing alpha and beta chain sequences with id as header
+
+    Parameters
+    __________
+    alpha_file : str
+        name of alpha chain file
+    beta_file : str
+        name of beta chain file
+    tcr_dic : dict
+        dictionary of all tcrs
+    character_list : str
+        list of characters to not include in fasta header id
+    """
     with open(alpha_file, "w") as file_a:
         with open(beta_file, "w") as file_b:
             for clone_id in tcr_dic:

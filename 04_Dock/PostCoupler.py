@@ -1,15 +1,42 @@
-# This file is a part of the TRain program
-# Author: Austin Seamann & Dario Ghersi
-# Version: 0.1
-# Last Updated: January 12th, 2022
+#!/usr/bin/python3
+
+######################################################################
+# PostCoupler.py -- A component of TRain                             #
+# Copyright: Austin Seamann & Dario Ghersi                           #
+# Version: 0.1                                                       #
+# Last Updated: January 12th, 2022                                   #
+# Goal: Match chain labeling and numbering of a reference PDB file   #
+#                                                                    #
+# Positional argument: PDB (PDB file being renumbered                #
+# Named arguments: -r --reference (Reference PDB file being used to  #
+#                                 match numbering)                   #
+#                  -n --name (Customized name for output file)       #
+#                  -c --chains (Chains that will be renumbered from  #
+#                              reference)                            #
+#                  -u --custom (Custom numbering for smalled chain   #
+#                              | e.g. 9,11,2,4,5 | Has to match num  #
+#                              of aa to numbers provided)            #
+######################################################################
+
 
 import argparse
 from Bio import pairwise2
 
 
 class MatchNumber:
-    # Methods
+    #################
+    #    Methods    #
+    #################
     def match_number(self, custom):
+        """
+        Align chains and for amino acids that overlap, renumber them to the reference chains
+        numbering. Update them to PDB.
+
+        Parameters
+        __________
+        custom : str
+            comma sep. str of numbering for shorest chain if provided by user
+        """
         # Constants
         POSSEQ = [22, 26]
         CHAINID = 21
@@ -85,8 +112,20 @@ class MatchNumber:
                     else:
                         w.write(line)
 
-    # Counts how may gaps until start of seq and reports position
     def find_gap(self, seq):
+        """
+        Counts how may gaps until start of seq and reports position
+
+        Parameters
+        __________
+        seq : str
+            sequence string to be search for gap character ("-")
+
+        Returns
+        _______
+        count : int
+            position in which first gap character appears
+        """
         count = 0
         for letter in seq:
             if letter == "-":
@@ -95,9 +134,20 @@ class MatchNumber:
                 break
         return count
 
-    # Returns a list of all chains in PDB file
-    # INPUT: PDB name
     def get_chains(self, pdb):
+        """
+        Collect chains found in PDB file
+
+        Parameters
+        __________
+        pdb : str
+            location of pdb file
+
+        Returns
+        _______
+        chains : list
+            list of all chains in PDB file
+        """
         chains = []
         with open(pdb, 'r') as file:
             for line in file:
@@ -169,6 +219,9 @@ class MatchNumber:
         self.name = target[:-4] + "_orinum.pdb"
 
 
+####################
+#     Controls     #
+####################
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("pdb", help="PDB file being renumbered", type=str)

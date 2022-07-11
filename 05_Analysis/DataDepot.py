@@ -1,7 +1,37 @@
-# This file is a part of the TRain program
-# Author: Austin Seamann, Dario Ghersi, & Ryan Ehrlich
-# Version: 0.1
-# Last Updated: April 3rd, 2022
+#!/usr/bin/python3
+
+######################################################################
+# DataDepot.py -- A component of TRain                               #
+# Copyright: Austin Seamann & Dario Ghersi                           #
+# Version: 0.1                                                       #
+# Last Updated: April 3rd, 2022                                      #
+# Goal: Perform analysis of TCR PDB files and data from docking      #
+#                                                                    #
+# Named arguments: -a --ab ((AB usage) Submit PDB for ab_usage       #
+#                           interface scores)                        #
+#                  -v --verbose ((AB usage) Verbose)                 #
+#                  -s --sc ((Native) Score file produced from        #
+#                           docking or refinement (or dir of .sc))   #
+#                  -x --xaxis ((Native) X axis for native structure  #
+#                              comparison)                           #
+#                  -y --yaxis ((Native) Y axis for native structure  #
+#                              comparison)                           #
+#                  --ymax ((Native) Y axis value maximum)            #
+#                  --ymin ((Native) Y axis value minimum)            #
+#                  --xmax ((Native) X axis value maximum)            #
+#                  --xmin ((Native) X axis value minimum)            #
+#                  -p --heatmap_dist ((DHM) Distance Breakdown TCR   #
+#                                     PDB File)                      #
+#                  -d --distance ((DHM) Distance Breakdown TCR PDB   #
+#                                 File)                              #
+#                  -c --alpha_carbon ((DHM) Alpha carbon only)       #
+#                  -e --heatmap_energy ((EB) TCR PDB File)           #
+#                  -t --table ((EB) TCR PDB File)                    #
+#                  -m --mhc ((DHM/EB) Changes energy breakdown to    #
+#                            MHC versus peptide)                     #
+#                  -f --fontsize ((DHM/EB) Adjust font size)         #
+######################################################################
+
 import argparse
 import os
 import pandas as pd
@@ -15,35 +45,26 @@ from PDB_Tools_V3 import PdbTools3
 #    Global     #
 #################
 rosetta_dir = ""
+verbose = False
 
 
 #################
 #    Methods    #
 #################
-def box_plot_isc(df_0):
-    score_df = pd.read_csv(df_0, index_col=0, sep="\t").sort_values('TCR')
-    m1_df = score_df.query("TCR_Ant  == 'M1'")
-    print(m1_df)
-    m1s = {}
-    for tcr in m1_df["TCR"].unique():  # for each with M1 TC
-        m1s[tcr] = m1_df.query("TCR == '" + tcr + "'")
-    for each in m1s:
-        current = m1s[each].query("pMHC == '" + each + "'")  # pulls current TCR from table
-        m1s[each] = m1s[each].query("pMHC != '" + each + "'")
-        ax = sns.boxplot(y=m1s[each]["I_sc"], x=m1s[each]["TCR"])  # Produces box plot
-        plt.plot([current["I_sc"], current["I_sc"]], linewidth=2, color="red")
-        plt.show()
-
-
 #################
 #   AB usage    #
 #################
-# Global
-verbose = False
-
-
-# Manages program
 def run_interface(tcr_dir, chains):
+    """
+    Manges the run of interface breakdown
+
+    Parameters
+    ----------
+    tcr_dir : str
+        directory of where the TCR files are
+    chains : str
+        chains to compare
+    """
     global rosetta_dir
     global verbose
     tool = PdbTools3()  # Initialize PDB tools
@@ -97,8 +118,15 @@ def run_interface(tcr_dir, chains):
     write_results(results)
 
 
-# Writing to output file
 def write_results(results):
+    """
+    Writes the results of interface breakdown
+
+    Parameters
+    ----------
+    results : dict
+        information about the analysis of the interface scores of each chain and tcr
+    """
     global verbose
     with open("AB_Usage.csv", "w") as f:
         f.write("PDB,ALPHA,BETA\n")
@@ -110,8 +138,15 @@ def write_results(results):
                 print(pdb_id + "\t" + str(results[pdb_id]["ALPHA"]) + "\t" + str(results[pdb_id]["BETA"]))
 
 
-# Creates flag files for InterfaceAnalyzer
 def write_flag(chains):
+    """
+    Creates flag files for InterfaceAnalyzer
+
+    Parameters
+    ----------
+    chains : str
+        chain of the TCR being analyzed
+    """
     keys = ["ALPHA", "BETA"]  # Allows for loop of alpha beta
     for chain in keys:
         chain_id = chains[chain] + "_" + chains["MHC"] + chains["peptide"]  # generates chain_id: ex. AC_D
@@ -136,7 +171,28 @@ def write_flag(chains):
 #################
 #     Native    #
 #################
+# TODO: Option to save plot if not using GUI
 def single_graph(score_file, x, y, ymax, ymin, xmax, xmin):
+    """
+    Produces a single seaborn relplot of the scoring of a native TCR redocking
+
+    Parameters
+    ----------
+    score_file : str
+        name and location of score file
+    x : str
+        value being plotted for x-axis
+    y : str
+        value being plotted for y-axi
+    ymax : int
+        max value for y axis
+    ymin : int
+        min value for y axi
+    xmax : int
+        max value for x axis
+    xmin : int
+        min value for x axis
+    """
     content = subprocess.run("tr -s ' ' < " + score_file + " | tr ' ' ','", shell=True, stdout=subprocess.PIPE)
     if "/" in score_file:  # Detect if not in current dir
         dir_file = "/".join(score_file.split("/")[:-1]) + "/"
@@ -171,6 +227,26 @@ def single_graph(score_file, x, y, ymax, ymin, xmax, xmin):
 
 
 def multi_graph(dir_score_files, x, y, ymax, ymin, xmax, xmin):
+    """
+    Produces a multi-plot of seaborn relplots of the scoring of a native TCR redocking
+
+    Parameters
+    ----------
+    dir_score_files : str
+        directory that contains the .sc file
+    x : str
+        value being plotted for x-axis
+    y : str
+        value being plotted for y-axi
+    ymax : int
+        max value for y axis
+    ymin : int
+        min value for y axi
+    xmax : int
+        max value for x axis
+    xmin : int
+        min value for x axis
+    """
     all_file = os.getcwd() + "/" + dir_score_files + "/all.sc"
     print(all_file)
     header = False
@@ -225,13 +301,26 @@ def multi_graph(dir_score_files, x, y, ymax, ymin, xmax, xmin):
 first_aa = {}
 
 
-# Reading energy breakdown excel file
-# File: 0: Score, 1: pose_id, 2: resi1, 3: pdbid1, 4: restype1, 5: resi2, 6: pdbid2, 7: restype2, 8: fa_atr
-# 9: fa_rep, 10: fa_sol, 11: fa_sol_rep, 12: fa_intra_sol_xover4, 13: ik_ball_wtd, 14: fa_elec, 15: pro_close
-# 16: hbond_sr_bb, 17: hbond_lr_bb, 18: hbond_bb_sc, 19: hbond_sc, 20: dslf_fa13, 21: omega, 22: fa_dun
-# 23: p_aa_pp, 24: yhh_planarity, 25: ref, 26: rama_prepro, 27: total, 28: description
-# Returns: chains = {'A':[['1A','GLY],['2A','SER'],...]}, interactions = {'1A':['1A', '2A',0.0],...],'2A':[..]}
 def read_sheet(sheet_in):
+    """
+    Reading energy breakdown csv file
+    File: 0: Score, 1: pose_id, 2: resi1, 3: pdbid1, 4: restype1, 5: resi2, 6: pdbid2, 7: restype2, 8: fa_atr
+    9: fa_rep, 10: fa_sol, 11: fa_sol_rep, 12: fa_intra_sol_xover4, 13: ik_ball_wtd, 14: fa_elec, 15: pro_close
+    16: hbond_sr_bb, 17: hbond_lr_bb, 18: hbond_bb_sc, 19: hbond_sc, 20: dslf_fa13, 21: omega, 22: fa_dun
+    23: p_aa_pp, 24: yhh_planarity, 25: ref, 26: rama_prepro, 27: total, 28: description
+
+    Parameters
+    ----------
+    sheet_in : str
+        name / location of csv file
+
+    Returns
+    -------
+    chains : dict
+        {'A':[['1A','GLY],['2A','SER'],...]}
+    interactions : dict
+        {'1A':['1A', '2A',0.0],...],'2A':[..]}
+    """
     interactions = {}  # Dir of interactions in PDB, Key:
     chains = {}  # Dir of chains in file, Key: Chain_ID, Value: 0 - red_id, 1 - AA
     df = pd.read_csv(sheet_in)
@@ -262,8 +351,24 @@ def read_sheet(sheet_in):
     return chains, interactions
 
 
-# Gathers each interaction and produces a dictionary with {'1A':'GLY',...,'105D':'GLY'}
 def get_peptide_inter(chains, interactions, chain_in):
+    """
+    Gathers each interaction and produces a dictionary with {'1A':'GLY',...,'105D':'GLY'}
+
+    Parameters
+    ----------
+    chains : dict
+        Dictionary produced by above method - {'A':[['1A','GLY],['2A','SER'],...]}
+    interactions :dict
+        Dictionary produced by above method - {'1A':['1A', '2A',0.0],...],'2A':[..]}
+    chain_in : str
+        Chain being compared to for interactions to the TCR
+
+    Returns
+    -------
+    aa_inter : dict
+        Dictionary containing the interactions to be documented in the heatmap or csv table
+    """
     peptide = []
     aa_inter = {}
     for AA_Peptide in chains[chain_in]:
@@ -277,8 +382,23 @@ def get_peptide_inter(chains, interactions, chain_in):
     return aa_inter
 
 
-# Creates the CSV table
 def make_peptide_table(tcr_file, aa_list, chain_list, csv_name, chain_in):
+    """
+    Creates the CSV table of results of the interactions
+
+    Parameters
+    ----------
+    tcr_file : str
+        PDB of tcr being analyzed
+    aa_list : dict
+        List of interactions provided by method above
+    chain_list : list
+        List of chains being compared
+    csv_name : str
+        Name of the outputted table being produced
+    chain_in : str
+        Chain that's being determined what interactions it has to the TCR chains
+    """
     aa_info = {}  # Key: ChainID Value: AA as 3 letter
     tool = PdbTools3(tcr_file)
     cdr_pos = tool.pull_cdr()
@@ -313,9 +433,27 @@ def make_peptide_table(tcr_file, aa_list, chain_list, csv_name, chain_in):
                     t1.write(output)
 
 
-# Generates data for heatmap based on chain_in and CDR regions
-# Return csv with dataset to create heatmap & cdr_info to avoid rerunning search
 def heatmap_info(tcr_file, aa_list, chain_list, chain_in):
+    """
+    Generates data for heatmap based on chain_in and CDR regions
+    Return csv with dataset to create heatmap & cdr_info to avoid rerunning search
+
+    Parameters
+    ----------
+    tcr_file : str
+        PDB of tcr being analyzed
+    aa_list : dict
+        List of interactions provided by method above
+    chain_list : list
+        List of chains being compared
+    chain_in : str
+        Chain that's being determined what interactions it has to the TCR chains
+
+    Returns
+    -------
+    file_name : str
+    cdr_info : dict
+    """
     aa_info = {}  # Key: ChainID Value: aa as 3 letters
     tool = PdbTools3(tcr_file)
     cdr_pos = tool.pull_cdr()
@@ -361,6 +499,24 @@ def heatmap_info(tcr_file, aa_list, chain_list, chain_in):
 
 
 def heatmap(info, cdr_info, chain_in, font_size, distance_in=0.0, distance=False):
+    """
+    Produce the heatmap with the informatino collected above using seaborn
+
+    Parameters
+    ----------
+    info : str
+        Location of CSV for heatmap creation
+    cdr_info : dict
+        Dictionary produced by above method
+    chain_in : str
+        Chain that's being determined what interactions it has to the TCR chains
+    font_size : int
+        Size the user wants the font to be
+    distance_in : float
+        vmax
+    distance : boolean
+        If utilizing distance cut on plot
+    """
     # Read in csv
     df = pd.read_csv(info)
     # Remove columns with only zero values if MHC
@@ -433,6 +589,20 @@ def heatmap(info, cdr_info, chain_in, font_size, distance_in=0.0, distance=False
 
 
 def interface_heatmap(tcr_file, interface_breakdown, mhc, font_size):
+    """
+    Controls the helper method to produce heatmap of TCR residue energy breakdown results
+
+    Parameters
+    ----------
+    tcr_file : str
+        Location of tcr file
+    interface_breakdown : str
+        Output of interface breakdown
+    mhc : boolean
+        If the user wants to compare the TCR interactions to the MHC chain
+    font_size : int
+        Size the user wants the font to be
+    """
     # Changes to MHC chain if requested
     chain_in = "C"
     if mhc:
@@ -444,13 +614,32 @@ def interface_heatmap(tcr_file, interface_breakdown, mhc, font_size):
     os.remove(info)
 
 
-# Calculate distances between CDR loops and antigen - save atoms within cutoff distance
-# Input:
-#   tcr_file: PDB of TCR
-#   distance: Cutoff of collected values
-#   alpha_carbon: Distance from alpha_carbon - else distance from closest atom in aa
-#   chain_in: MHC chain: A or Peptide chain: C
 def get_contacts(tcr_file, distance, alpha_carbon, chain_in):
+    """
+    Calculate distances between CDR loops and antigen - save atoms within cutoff distance
+
+    Parameters
+    ----------
+    tcr_file : str
+        PDB of TCR
+    distance : float
+        Cutoff of collected values
+    alpha_carbon : boolean
+        Distance from alpha_carbon - else distance from closest atom in aa
+    chain_in : chain_in
+        MHC chain: A or Peptide chain: C
+
+    Returns
+    -------
+    contacts : dict
+        {AA comp_num: {partner AA comp_num: distance}}
+    cdr_info : dict
+        Dictionary containing information about CDR regions of each chains
+    cdr_aa : dict
+        Dictionary containing information about CDR regions for each chain
+    all_aa : dict
+        Store list of residues and resi num for each amino acid in each chain
+    """
     tool = PdbTools3(tcr_file)
     cdr_pos = tool.pull_cdr()
     cdr_info = {"D": {"CDR1α": range(cdr_pos[0][0][1], cdr_pos[0][0][2]),
@@ -519,6 +708,24 @@ def get_contacts(tcr_file, distance, alpha_carbon, chain_in):
 
 
 def distance_heatmap_info(contacts, cdr_info, all_aa, chain_in):
+    """
+    Produce the heatmap csv information table
+
+    Parameters
+    ----------
+    contacts : dict
+        {AA comp_num: {partner AA comp_num: distance}}
+    cdr_info : dict
+        Dictionary containing information about CDR regions of each chains
+    all_aa : dict
+        Store list of residues and resi num for each amino acid in each chain
+    chain_in : str
+
+    Returns
+    -------
+    file_name : str
+        Name of csv produced
+    """
     file_name = "temp.csv"
     with open(file_name, "w") as f1:
         header_list = []  # Keeps tracks of position of aa in header list ex. 101E
@@ -545,6 +752,21 @@ def distance_heatmap_info(contacts, cdr_info, all_aa, chain_in):
 
 
 def interface_heatmap_dist(tcr_file, distance, alpha_carbon, mhc, font_size):
+    """
+    Controls the methods used for interface heatmap with distance cutoff
+
+    Parameters
+    ----------
+    tcr_file : str
+        Location of TCR PDB file
+    distance : float
+        Distance cutoff
+    alpha_carbon : boolean
+        If using alpha_carbon distance
+    mhc : boolean
+        If user wants to compare TCR chains with MHC instead of peptide
+    font_size : int
+    """
     chain_in = "C"
     if mhc:
         chain_in = "A"
@@ -554,19 +776,42 @@ def interface_heatmap_dist(tcr_file, distance, alpha_carbon, mhc, font_size):
     os.remove(temp_file)
 
 
-# Controller method to generate energy breakdown table
-def peptide_table(tcr_file, energry_breakdown, mhc):
+def peptide_table(tcr_file, energy_breakdown, mhc):
+    """
+    Controller method to generate energy breakdown table
+
+    Parameters
+    ----------
+    tcr_file : str
+        Location of TCR PDB file
+    energy_breakdown : str
+        Location fo energry breakdown output
+    mhc : boolean
+        If user wants to compare TCR chains with MHC instead of peptide
+    """
     # Changes to MHC chain if requested
     chain_in = "C"
     if mhc:
         chain_in = "A"
-    chain_list, inter_list = read_sheet(energry_breakdown)
+    chain_list, inter_list = read_sheet(energy_breakdown)
     aa_inter = get_peptide_inter(chain_list, inter_list, chain_in)
     make_peptide_table(tcr_file, aa_inter, chain_list, "output.csv", chain_in)
 
 
-# Convert tsv to csv
 def tsv_to_csv(tsv_in):
+    """
+    Convert tsv to csv
+
+    Parameters
+    ----------
+    tsv_in : str
+        Location of tsv file
+
+    Returns
+    -------
+    new_name : str
+        Updated location of file, now csv
+    """
     name_in = tsv_in
     # Rename to same name but replace file extension to .csv
     new_name = "".join(tsv_in.split(".")[:-1]) + ".csv"
@@ -580,8 +825,20 @@ def tsv_to_csv(tsv_in):
     return new_name
 
 
-# Run Rosetta Residue Energy Breakdown program if PDB submitted for heatmap or energy breakdown table
 def run_breakdown(pdb_in):
+    """
+    Run Rosetta Residue Energy Breakdown program if PDB submitted for heatmap or energy breakdown table
+
+    Parameters
+    ----------
+    pdb_in : str
+        Location of TCR PDB file
+
+    Returns
+    -------
+    convert_out : str
+        Location of the outputted csv results
+    """
     # Update program location information
     global rosetta_dir
     # In and out files
@@ -596,8 +853,15 @@ def run_breakdown(pdb_in):
     return convert_out
 
 
-# Determine what binaries are built for rosetta based on each program
 def rosetta_binary(program_in):
+    """
+    Determine what binaries are built for rosetta based on each program
+
+    Parameters
+    ----------
+    program_in : str
+        Location of Rosetta
+    """
     # Update program location information
     global rosetta_dir
     with open("../config.ini", "r") as f1:

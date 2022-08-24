@@ -552,13 +552,13 @@ def main():
         global silent
         silent = True
     # create dictionary for program to pull gene family information from
-    create_gene_dic(args.genefamily, args.organism, args.alpha, args.beta)
+    create_gene_dic(args.genefamily, args.organism)
     # create tcr dictionary containing each segment
     tcr_dic = get_tcr_info(args.single_cell_table, args.sheet, [int(i) for i in args.columns.split(",")])
     # create full tcr sequences
     tcr_seq_dic = make_tcr_seq(tcr_dic)
     if args.append:
-        tcr_seq_dic = append_constant(tcr_seq_dic, args.organism)
+        tcr_seq_dic = append_constant(tcr_seq_dic, args.organism, args.alpha, args.beta)
     # Create information table with full TCR sequences
     if args.fasta:
         make_fasta_files("alpha.fasta", "beta.fasta", tcr_seq_dic, args.omission)

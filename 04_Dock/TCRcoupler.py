@@ -53,6 +53,7 @@
 ######################################################################
 
 
+import sys
 import argparse
 import subprocess
 import time
@@ -412,26 +413,27 @@ def run_flexible(pdb, run_info, native):
     """
     print("Starting!")
     start = time.time()
-    if not run_info["rerun_refine"]:
-        print("Running relax...")
-        flex_make_dirs()
-        split_tcr = ["python3", "PDB_Tools_V3.py", pdb, "--tcr_split_default"]  # Create tcr.pdb file
-        split_pmhc = ["python3", "PDB_Tools_V3.py", pdb, "--pmhc_split"]  # Create pmhc.pdb file
-        subprocess.run(split_tcr)
-        subprocess.run(split_pmhc)
-        run_pmhc_relax("pmhc.pdb", run_info["pmhc"], run_info["cpu_pmhc"])
-        run_xml_relax("tcr.pdb", run_info["xml"], run_info["cpu_xml"])
-        run_bb_relax("tcr.pdb", run_info["bb"], run_info["cpu_bb"])
-        run_fast_relax("tcr.pdb", run_info["fast"], run_info["cpu_fast"])
-        print("Preparing prepack...")
-        run_prepack(pdb)
-        print("Running docking...")
-        run_flex_dock(pdb, run_info["docking"], run_info["cpu_docking"], native)
-        if native != "...":
-            check_rmsd(native, "dock")  # Calculate RMSD CA and all-atom - append to score file
+    # if not run_info["rerun_refine"]:
+    #     print("Running relax...")
+    #     flex_make_dirs()
+    #     split_tcr = ["python3", "PDB_Tools_V3.py", pdb, "--tcr_split_default"]  # Create tcr.pdb file
+    #     split_pmhc = ["python3", "PDB_Tools_V3.py", pdb, "--pmhc_split"]  # Create pmhc.pdb file
+    #     subprocess.run(split_tcr)
+    #     subprocess.run(split_pmhc)
+    #     run_pmhc_relax("pmhc.pdb", run_info["pmhc"], run_info["cpu_pmhc"])
+    #     run_xml_relax("tcr.pdb", run_info["xml"], run_info["cpu_xml"])
+    #     run_bb_relax("tcr.pdb", run_info["bb"], run_info["cpu_bb"])
+    #     run_fast_relax("tcr.pdb", run_info["fast"], run_info["cpu_fast"])
+    #     print("Preparing prepack...")
+    #     run_prepack(pdb)
+    #     print("Running docking...")
+    #     run_flex_dock(pdb, run_info["docking"], run_info["cpu_docking"], native)
+    #     if native != "...":
+    #         check_rmsd(native, "dock")  # Calculate RMSD CA and all-atom - append to score file
     print("Running refine...")
     pdb_refine = check_score_dock(run_info["cluster_par"], run_info["rotation_check"],
                                   run_info["num_clusters"])
+    sys.exit()
     if run_info["clear_pdbs"]:
         remove_dock(pdb_refine)
     run_refine(pdb_refine + ".pdb", run_info["refine"], run_info["cpu_refine"], native)
@@ -847,18 +849,22 @@ def check_score_dock(cluster_par=False, rotation_check=False, num_clusters=0):
     Returns
     -------
     best_pdb : str
-        location of pdb selected by scoring method utilizied
+        location of pdb selected by scoring method utilized
     """
     dock_dir = os.getcwd() + "/output_files/dock"
     # Produce ordered list of scores
     ordered = check_score(dock_dir)
 
     if not cluster_par:
-        pickle_name = "dock_rmsds.pickle"
+        pickle_name = "dock_rmsds.pickle"  # Will save to pickle and default uses pickle if detected in folder.
         # Return the list of the 200 best scoring structures with confirmed orientation of TCRpMHC
         if pickle_name not in os.listdir():
-            passed = confirm_rotation(dock_dir, ordered)
+            if not rotation_check:
+                passed = confirm_rotation(dock_dir, ordered)
+            else:
+                passed = ordered.keys()[:200]
         # Calculate pairwise rmsd. Returns dictionary with {(pdb1, pdb2): score, (pdb1, pdb3): score, ...}
+        print("Num of Rotation Passed List:" + str(len(passed)))
         if pickle_name not in os.listdir():
             rmsds = pairwise_rmsd(dock_dir, passed)
             with open(pickle_name, 'wb') as f:
@@ -963,7 +969,7 @@ def confirm_rotation(directory, ordered):
                 beta_dis = dis
         if alpha_dis < beta_dis:
             passed_pdbs.append(pdb)
-    return passed_pdbs
+    return passed_pdbs[:200]
 
 
 def pairwise_rmsd(directory, passed):
@@ -984,7 +990,7 @@ def pairwise_rmsd(directory, passed):
     """
     tool = PdbTools3()
     pairwise_data = {}  # {(pdb_1, pdb_2): dis}
-    count = 1
+    count = 0
     for pdb_1 in passed[:200]:
         pdb_1_file = directory + "/" + pdb_1 + ".pdb"
         tool.set_file_name(pdb_1_file)
@@ -1067,7 +1073,7 @@ def eigen_gap_heuristic(aff_mat, max_k=8):
     return num_cl
 
 
-def spectral_cluster_tsne(rmsd_tsne, num_clusters):
+def spectral_cluster(rmsd_tsne, num_clusters):
     """
     Perform spectral clustering of tsne results
 
@@ -1097,7 +1103,7 @@ def spectral_cluster_tsne(rmsd_tsne, num_clusters):
                             assign_labels='discretize', random_state=1)
     sc.fit(affMat)
     labels = sc.labels_
-    return labels
+    return labels, sc
 
 
 def cluster_tsne_only(rmsds, ordered, num_clusters):
@@ -1117,51 +1123,40 @@ def cluster_tsne_only(rmsds, ordered, num_clusters):
     -------
     best_pdb : str
         location of best scoring pdb based on the results of clustering and best_cluster_tsne
+
+    Output
+    ______
+    cluster_results.txt
+        Results file providing additional data on clustering results
     """
-    keys = [sorted(k) for k in rmsds.keys()]
-    values = rmsds.values()
-    # Produce sorted list of distances and separate keys
-    sorted_keys, distances = zip(*sorted(zip(keys, values)))
-    uniq_keys = []
-    for key in sorted_keys:
-        if key[0] not in uniq_keys:
-            uniq_keys.append(key[0])
-
-    # Create dictionary of distances for each unique pdb
-    array_dic = {key: [] for key in uniq_keys}  # {pdb_1: [score_1, score_2, ...]}
-    for key in uniq_keys:
-        for i in range(len(sorted_keys)):
-            if sorted_keys[i][0] == key or sorted_keys[i][1] == key:
-                array_dic[key].append(distances[i])
-
+    # Each PDB in sorted order pulled from rmsds
+    pdbs = set([k[0] for k in rmsds.keys()])
     # Convert to rmsd matrix
     rmsd_matrix = []
-    for key in array_dic:
-        rmsd_matrix.append(array_dic[key])
+    row_count = 0
+    # Populate rmsd matrix
+    for pdb in pdbs:
+        rmsd_matrix.append([])
+        for x in rmsds:
+            if x[0] == pdb or x[1] == pdb:
+                rmsd_matrix[row_count].append(rmsds[x])
+
     # Convert to np array
     rmsd_matrix = np.asarray(rmsd_matrix)
-
-    # Implement t-SNE clustering
-    tsne = TSNE(n_components=2, init='pca', random_state=0)
-    rmsd_tsne = tsne.fit_transform(rmsd_matrix)
+    with open("pdbs.pickle", "wb") as f:
+        pickle.dump(pdbs, f)
+    with open("rmsd_matrix_cluster.pickle", "wb") as f1:
+        pickle.dump(rmsd_matrix, f1)
 
     # Spectral Clustering
-    labels = spectral_cluster_tsne(rmsd_tsne, num_clusters)
+    labels, sc = spectral_cluster(rmsd_matrix, num_clusters)
 
-    # Select best pdb
-    best_pdb, best_coor = best_cluster_tsne(ordered, uniq_keys, labels, rmsd_tsne)
+    # Save ordered to pickle
+    with open("ordered.pickle", "rb") as f:
+        pickle.dump(ordered, f)
 
-    # Spectral
-    # Produce plot of t-SNE coordinates with labels from spectral clustering
-    plt.clf()
-    plt.cla()
-    plt.close()
-    plt.figure(figsize=(15, 10))
-    sns.scatterplot(x=rmsd_tsne[:, 0], y=rmsd_tsne[:, 1], hue=labels, palette="tab10", s=46)
-    plt.scatter(x=best_coor[0], y=best_coor[1], color='black', marker="x", s=20)
-    plt.title("t-SNE of Pairwise RMSD - Cluster Colors Based on Spectral Clustering Results\n" \
-              "Selected PDB: " + best_pdb)
-    plt.savefig("spectral_tsne.png", format="png")
+    # Collect additional data on cluster and output to file
+    lowest_score = best_cluster(ordered, pdbs, labels, sc)
 
     # Produce plot of original RMSD pairwise data with embedding and labels of spectral clustering
     plt.clf()
@@ -1169,22 +1164,16 @@ def cluster_tsne_only(rmsds, ordered, num_clusters):
     plt.close()
     plt.figure(figsize=(15, 10))
     sns.scatterplot(x=rmsd_matrix[:, 0], y=rmsd_matrix[:, 1], hue=labels, palette="tab10", s=46)
-    plt.scatter(x=best_coor[0], y=best_coor[1], color='black', marker="x", s=20)
-    plt.title("t-SNE of Pairwise RMSD Labeling of Distance Matrix in 2D")
-    plt.savefig("rmsd_spectral_scatter.png", format="png")
+    # plt.scatter(x=rmsd_matrix[0], y=rmsd_matrix[1], color='black', marker="x", s=20)
+    plt.title("Labels of Spectral Clustering on First Two Dimensions of Distance Matrix")
+    plt.savefig("rmsd_spectral.png", format="png")
 
-    # t-sne cluster information for testing
-    with open("rsne_clus_info_only.csv", "w") as f1:
-        for i in range(len(labels)):
-            line = str(rmsd_tsne[:, 0][i]) + "," + str(rmsd_tsne[:, 1][i]) + "," + str(labels[i]) + "\n"
-            f1.write(line)
-
-    return best_pdb
+    return pdbs[0]
 
 
-def best_cluster_tsne(ordered, uniq_keys, labels, rmsd_tsne):
+def best_cluster(ordered, uniq_keys, labels, rmsd_tsne):
     """
-    Determine the cluster with the lowest average score then select most central pdb of cluster
+    Determine the cluster with the lowest I_sc and provide the label and pdb. Provide additional data on each cluster
 
     Parameters
     ----------
@@ -1205,31 +1194,61 @@ def best_cluster_tsne(ordered, uniq_keys, labels, rmsd_tsne):
         top scoring cluster
     """
     # Create dictionary containing cluster label and corresponding pdbs
-    cluster_dict = {label: [] for label in list(set(labels))}  # {cluster num: [pdb, pdb, ...],...}
+    cluster_dict = {label: [] for label in list(set(labels))}  # {cluster num: [pdb, score], [pdb, score] ,...}
     for i in range(len(uniq_keys)):
-        cluster_dict[labels[i]].append(uniq_keys[i])
+        cluster_dict[labels[i]].append([uniq_keys[i], ordered[uniq_keys[i]]])
     # Collect scores for each pdb in each cluster
     cluster_score = {label: [] for label in list(set(labels))}
     for cluster in cluster_dict:
         for pdb in cluster_dict[cluster]:
-            cluster_score[cluster].append(float(ordered[pdb]))
+            cluster_score[cluster].append(float(ordered[pdb[0]]))
+    print("Cluster Score:", cluster_score)
+
     # Determine average score for each cluster
     cluster_score_avg = {label: [] for label in list(set(labels))}
     for cluster in cluster_dict:
         cluster_score_avg[cluster] = statistics.mean(cluster_score[cluster])
-    sorted_avg = sorted(cluster_score_avg.items(), key=lambda item:item[1], reverse=True)
-    scores_avg = {k: v for k, v in sorted_avg}
-    best_cluster = next(iter(scores_avg))
-    best_cluster_coor = []
-    for i in range(len(rmsd_tsne)):
-        if labels[i] == best_cluster:
-            best_cluster_coor.append(list(rmsd_tsne[i]))
-    best_cluster_coor = np.array(best_cluster_coor)
-    center = np.mean(best_cluster_coor, axis=0)
-    distances = np.sqrt(((best_cluster_coor - center)**2).sum(axis=1))
-    centroid = best_cluster_coor[np.argmin(distances)]
-    pos = list(np.where((rmsd_tsne == centroid).all(axis=1))[0])
-    return uniq_keys[pos[0]], rmsd_tsne[pos[0]]
+
+    # Find the centroid of each cluster
+    cluster_coor = {label: [] for label in list(set(labels))}  # {cluster num: [coor 1:, coor 1, [X, Y, Z], ...], ...}
+    cluster_center = {label: [] for label in list(set(labels))}  # {cluster num: center}
+    for cluster in cluster_dict:
+        # Collect the coordinates based on cluster
+        for i in range(len(rmsd_tsne)):
+            if labels[i] == cluster:
+                cluster_coor[cluster].append(list(rmsd_tsne[i]))
+        array_cluster_coor = np.array(cluster_coor[cluster])
+        center = np.mean(array_cluster_coor, axis=0)
+        distances = np.sqrt(((array_cluster_coor - center) ** 2).sum(axis=1))
+        centroid = array_cluster_coor[np.argmin(distances)]
+        pos = list(np.where((rmsd_tsne == centroid).all(axis=1))[0])
+        cluster_center[cluster] = [pos[0], centroid, center]
+
+    with open("cluster_results.txt", "w") as f1:
+        f1.write("Lowest I_sc Per Cluster:\n")
+        f1.write("\tCluster:\tPDB:\tI_sc:\tCoor:\n")
+        lowest_score = {}  # {cluster num: [pdb, score]}
+        for cluster in cluster_dict:
+            sorted_score = sorted(cluster_dict[cluster], key=lambda x:x[1], reverse=True)
+            lowest_score[cluster] = [sorted_score[0]]
+            print("Sorted_Score:", sorted_score[0][0])
+            print("Sorted_Score 2:", sorted_score[0][1])
+            print("RMSD TSNE Result:", list(ordered.keys()).index(sorted_score[0][0]))
+            print("Coord:", str(rmsd_tsne[list(ordered.keys()).index(sorted_score[0][0])]))
+            f1.write("\t" + str(cluster) + "\t" + sorted_score[0][0] + "\t" + str(sorted_score[0][1])
+                     + "\t" + str(rmsd_tsne[list(ordered.keys()).index(sorted_score[0][0])]) + "\n")
+        f1.write("Cluster Averages:\n")
+        f1.write("\tCluster:\tAvg I_sc:\tCentroid PDB:\tCentroid Coor:\tAbsolute Center:\n")
+        for cluster in cluster_score_avg:
+            f1.write("\t" + str(cluster) + "\t" + str(cluster_score_avg[cluster])
+                     + "\t" + str(list(ordered.keys())[cluster_center[cluster][0]]) +
+                     "\t" + str(cluster_center[cluster][1]) + "\t" + str(cluster_center[cluster][2]) + "\n")
+        f1.write("Cluster PDBs:\n")
+        f1.write("\tCluster:\tPDB:\tI_sc:\n")
+        for cluster in cluster_dict:
+            for pdb in cluster_dict[cluster]:
+                f1.write("\t" + str(cluster) + "\t" + pdb[0] + "\t" + str(pdb[1]) + "\n")
+    return lowest_score
 
 
 ################

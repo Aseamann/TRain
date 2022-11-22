@@ -267,8 +267,13 @@ def align_overlap(front, end, part, clone_id):
             overlap = (len(end) * -1)  # If short CDR provided
         while not good:
             temp_align = aligner.align(front[overlap:], end)
-            # Reference first alignment
-            align_ = temp_align[0]
+            # Reference first alignment - catch if no alignment found at all.
+            try:
+                align_ = temp_align[0]
+            except:
+                output = front + end
+                print("Poor alignment possible: " + clone_id)
+                return output
             # Collect alignment info
             front_seq = temp_align.alignment.format().split("\n")[0]
             pairs_info = temp_align.alignment.format().split("\n")[1]
@@ -304,7 +309,12 @@ def align_overlap(front, end, part, clone_id):
         aligner.extend_gap_score = -0.5
         # Perform alignment
         temp_align = aligner.align(front[(len(end) - offset) * -1:], end)
-        align_ = temp_align[0]  # Reference first align
+        try:
+            align_ = temp_align[0]  # Reference first align - catch if no alignment found at all.
+        except:
+            output = front + end
+            print("Poor alignment possible: " + clone_id)
+            return output
         # Collect alignment info to print
         front_seq = temp_align.alignment.format().split("\n")[0]
         pairs_info = temp_align.alignment.format().split("\n")[1]

@@ -1,0 +1,9 @@
+## Python packages required for TRain ##
+## Breakdown of usage provided in manual ##
+pandas
+openpyxl
+biopython == 1.79
+scipy
+scikit-learn
+matplotlib
+seaborn

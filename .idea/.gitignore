@@ -12,6 +12,7 @@
 **/.DS_Store
 **/._.DS_Store
 __pycache__/
+**/__pycache__/
 *.pyc
 **/*.pyc
 TRain.egg-info/

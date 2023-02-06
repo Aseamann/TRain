@@ -203,10 +203,10 @@ def rosetta_binary(program_in):
             programs.append(program)
     for program in sorted(programs, key=len):
         if program.startswith(program_in + ".mpi"):
-            return "main/source/bin/" + program  # resulting binary location
+            return rosetta_dir + "/main/source/bin/" + program  # resulting binary location
             break
         elif not program.startswith(program_in + ".default") or program.startswith(program_in):
-            return "main/source/bin/" + program  # resulting binary location
+            return rosetta_dir + "/main/source/bin/" + program  # resulting binary location
 
 
 ######################################

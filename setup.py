@@ -1,6 +1,7 @@
 from setuptools import setup, find_packages
 
 # To perform build type "python -m pip install -e ."
+# Requires python==3.9
 
 setup(
     name="TRain",
@@ -11,11 +12,11 @@ setup(
     url="https://github.com/Aseamann/TRain",
     install_requires=[
         "pandas",
-        "numpy == 1.20.3",
+        "numpy == 1.20.1",
         "openpyxl",
         "biopython == 1.79",
-        "scipy == 1.9.3",
-        "scikit-learn == 1.2.0",
+        "scipy == 1.7.2",
+        "scikit-learn == 1.0.1",
         "matplotlib",
         "seaborn"
     ],

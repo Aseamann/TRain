@@ -189,7 +189,8 @@ def rosetta_binary(program_in):
     """
     # Update program location information
     global rosetta_dir
-    config_file = files("data").joinpath("config.ini")
+    with pkg_resources.path('data', 'config.ini') as p:
+        config_file = p
     with open(config_file, "r") as f1:
         for line in f1:
             if line[:11] == "rosetta_loc":
@@ -204,7 +205,7 @@ def rosetta_binary(program_in):
         if program.startswith(program_in + ".mpi"):
             return "main/source/bin/" + program  # resulting binary location
             break
-        elif not program.startswith(program_in + ".default"):
+        elif not program.startswith(program_in + ".default") or program.startswith(program_in):
             return "main/source/bin/" + program  # resulting binary location
 
 
@@ -240,8 +241,8 @@ def run_rigid(pdb, run_info, native):
         print("Running dock...")
         run_dock(pdb_dock + ".pdb", run_info["docking"], run_info["cpu_docking"], native)
         end_dock = (time.time() - start_dock) / 60.0
-        start_refine = time.time()
         print("Docking Complete")
+    start_refine = time.time()
     pdb_refine = check_score_dock(run_info["cluster_par"], run_info["rotation_check"],
                                   run_info["num_clusters"])
     if run_info["clear_pdbs"]:

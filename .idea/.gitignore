@@ -13,3 +13,4 @@
 **/._.DS_Store
 *.pyc
 TRain.egg-info/
+TRain.egg-info/*

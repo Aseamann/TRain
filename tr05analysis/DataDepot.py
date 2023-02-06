@@ -32,6 +32,7 @@
 #                  -f --fontsize ((DHM/EB) Adjust font size)         #
 ######################################################################
 
+from importlib.resources import files
 import argparse
 import os
 import pandas as pd
@@ -864,7 +865,8 @@ def rosetta_binary(program_in):
     """
     # Update program location information
     global rosetta_dir
-    with open("../config.ini", "r") as f1:
+    config_file = files("data").joinpath("config.ini")
+    with open(config_file, "r") as f1:
         for line in f1:
             if line[:11] == "rosetta_loc":
                 rosetta_dir = line[:-1].split("=")[1][1:-1]

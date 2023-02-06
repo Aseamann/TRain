@@ -52,7 +52,6 @@
 #                      rotation check)                               #
 ######################################################################
 
-
 from importlib.resources import files
 import argparse
 import subprocess
@@ -78,7 +77,6 @@ plt.style.use('seaborn-v0_8-whitegrid')
 ####################
 # Global Variables #
 ####################
-version = "linuxgccrelease"
 program_dir = os.getcwd()
 rosetta_dir = ""
 no_mpi = False
@@ -180,6 +178,36 @@ def prep_numbers(cores, flex, relax, docking, refine, pmhc, xml, bb, fast, rotat
     return run_info
 
 
+def rosetta_binary(program_in):
+    """
+    Determine what binaries are built for rosetta based on each program
+
+    Parameters
+    ----------
+    program_in : str
+        Location of Rosetta
+    """
+    # Update program location information
+    global rosetta_dir
+    config_file = files("data").joinpath("config.ini")
+    with open(config_file, "r") as f1:
+        for line in f1:
+            if line[:11] == "rosetta_loc":
+                rosetta_dir = line[:-1].split("=")[1][1:-1]
+    if not rosetta_dir.endswith("/"):
+        rosetta_dir += "/"
+    programs = []
+    for program in os.listdir(rosetta_dir + "main/source/bin"):
+        if program.startswith(program_in):
+            programs.append(program)
+    for program in sorted(programs, key=len):
+        if program.startswith(program_in + ".mpi"):
+            return "main/source/bin/" + program  # resulting binary location
+            break
+        elif not program.startswith(program_in + ".default"):
+            return "main/source/bin/" + program  # resulting binary location
+
+
 ######################################
 #               Rigid                #
 ######################################
@@ -259,16 +287,12 @@ def run_relax(pdb, runs, cpus):
     cpus : int
         number of cpu cores to allocate
     """
-    if not no_mpi:
-        dir_relax = rosetta_dir + "/main/source/bin/relax.mpi." + version
-    else:
-        dir_relax = rosetta_dir + "/main/source/bin/relax." + version
+    dir_relax = rosetta_binary("relax.")
     make_relax_file(pdb, runs, cpus)
     if not no_mpi:
-        print(["mpirun", dir_relax, "@flag_input_relax"])
-        subprocess.run(["mpirun", dir_relax, "@flag_input_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["mpirun", dir_relax, "@flag_input_relax"], stdout=subprocess.DEVNULL, stderr=True)
     else:
-        subprocess.run([dir_relax, "@flag_input_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run([dir_relax, "@flag_input_relax"], stdout=subprocess.DEVNULL, stderr=True)
 
 
 def make_relax_file(pdb, runs, cpus):
@@ -352,16 +376,12 @@ def run_dock(pdb, runs, cpus, native):
     native : str
         location of native structure to calculate RMSD against
     """
-    if not no_mpi:
-        dir_dock = rosetta_dir + "/main/source/bin/docking_protocol.mpi." + version
-    else:
-        dir_dock = rosetta_dir + "/main/source/bin/docking_protocol." + version
+    dir_dock = rosetta_binary("docking_protocol.")
     make_docking_file(pdb, runs, cpus, native)
     if not no_mpi:
-        subprocess.run(["mpirun", dir_dock, "@flag_local_docking"], stdout=subprocess.DEVNULL,
-                       stderr=subprocess.DEVNULL)
+        subprocess.run(["mpirun", dir_dock, "@flag_local_docking"], stdout=subprocess.DEVNULL, stderr=True)
     else:
-        subprocess.run([dir_dock, "@flag_local_docking"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run([dir_dock, "@flag_local_docking"], stdout=subprocess.DEVNULL, stderr=True)
 
 
 def make_docking_file(pdb, runs, cpus, native):
@@ -478,15 +498,12 @@ def run_pmhc_relax(pmhc, runs, cpus):
     cpus : int
         number of cpu cores to allocate
     """
-    if not no_mpi:
-        dir_relax = rosetta_dir + "/main/source/bin/relax.mpi." + version
-    else:
-        dir_relax = rosetta_dir + "/main/source/bin/relax." + version
+    dir_relax = rosetta_dir("relax.")
     make_pmhc_relax_file(pmhc, runs, cpus)
     if not no_mpi:
-        subprocess.run(["mpirun", dir_relax, "@flag_pmhc_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["mpirun", dir_relax, "@flag_pmhc_relax"], stdout=subprocess.DEVNULL, stderr=True)
     else:
-        subprocess.run([dir_relax, "@flag_pmhc_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run([dir_relax, "@flag_pmhc_relax"], stdout=subprocess.DEVNULL, stderr=True)
     check_score_pmhc_relax()
 
 
@@ -554,16 +571,13 @@ def run_xml_relax(tcr, runs, cpus):
     cpus : int
         number of cpu cores to allocate
     """
-    if not no_mpi:
-        dir_script = rosetta_dir + "/main/source/bin/rosetta_scripts.mpi." + version
-    else:
-        dir_script = rosetta_dir + "/main/source/bin/rosetta_scripts." + version
+    dir_script = rosetta_binary("rosetta_scripts.")
     make_xml_file()
     make_xml_flag(tcr, runs, cpus)
     if not no_mpi:
-        subprocess.run(["mpirun", dir_script, "@flag_xml_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["mpirun", dir_script, "@flag_xml_relax"], stdout=subprocess.DEVNULL, stderr=True)
     else:
-        subprocess.run([dir_script, "@flag_xml_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run([dir_script, "@flag_xml_relax"], stdout=subprocess.DEVNULL, stderr=True)
 
 
 def make_xml_file():
@@ -623,16 +637,12 @@ def run_bb_relax(tcr, runs, cpus):
     cpus : int
         number of cpu cores to allocate
     """
-    if not no_mpi:
-        dir_relax = rosetta_dir + "/main/source/bin/relax.mpi." + version
-    else:
-        dir_relax = rosetta_dir + "/main/source/bin/relax." + version
+    dir_relax = rosetta_dir("relax.")
     make_bb_relax_file(tcr, runs, cpus)
     if not no_mpi:
-        subprocess.run(["mpirun", dir_relax, "@flag_bb_tcr_relax"], stdout=subprocess.DEVNULL,
-                       stderr=subprocess.DEVNULL)
+        subprocess.run(["mpirun", dir_relax, "@flag_bb_tcr_relax"], stdout=subprocess.DEVNULL, stderr=True)
     else:
-        subprocess.run([dir_relax, "@flag_bb_tcr_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run([dir_relax, "@flag_bb_tcr_relax"], stdout=subprocess.DEVNULL, stderr=True)
 
 
 def make_bb_relax_file(tcr, runs, cpus):
@@ -674,9 +684,9 @@ def run_fast_relax(tcr, runs, cpus):
     cpus : int
         number of cpu cores to allocate
     """
-    dir_relax = rosetta_dir + "/main/source/bin/relax.mpi." + version
+    dir_relax = rosetta_binary("relax.")
     make_fast_relax_file(tcr, runs, cpus)
-    subprocess.run(["mpirun", dir_relax, "@flag_fast_relax"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["mpirun", dir_relax, "@flag_fast_relax"], stdout=subprocess.DEVNULL, stderr=True)
 
 
 def make_fast_relax_file(tcr, runs, cpus):
@@ -713,11 +723,10 @@ def run_prepack(pdb):
     pdb : str
         location of complex pre-dock structure PDB
     """
-    dir_relax = rosetta_dir + "/main/source/bin/docking_prepack_protocol.mpi." + version
+    dir_relax = rosetta_binary("docking_prepack_protocol.")
     make_ensemble_files()
     make_prepack_file(pdb)
-    subprocess.run(["mpirun", dir_relax, "@flag_ensemble_prepack"], stdout=subprocess.DEVNULL,
-                   stderr=subprocess.DEVNULL)
+    subprocess.run(["mpirun", dir_relax, "@flag_ensemble_prepack"], stdout=subprocess.DEVNULL, stderr=True)
 
 
 def make_ensemble_files():
@@ -774,9 +783,9 @@ def run_flex_dock(pdb, runs, cpus, native):
     native : str
         location of native structure for Rosetta to compare to
     """
-    dir_dock = rosetta_dir + "/main/source/bin/docking_protocol.mpi." + version
+    dir_dock = rosetta_binary("docking_protocol.")
     make_flex_docking_file(pdb, runs, cpus, native)
-    subprocess.run(["mpirun", dir_dock, "@flag_ensemble_docking"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["mpirun", dir_dock, "@flag_ensemble_docking"], stdout=subprocess.DEVNULL, stderr=True)
 
 
 def make_flex_docking_file(pdb, runs, cpus, native):
@@ -1365,9 +1374,9 @@ def run_refine(pdb, runs, cpus, native):
     native : str
         optional location of native structure to compare against
     """
-    dir_dock = rosetta_dir + "/main/source/bin/docking_protocol.mpi." + version
+    dir_dock = rosetta_binary("docking_protocol.")
     make_refine_file(pdb, runs, cpus, native)
-    subprocess.run(["mpirun", dir_dock, "@flag_local_refine"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["mpirun", dir_dock, "@flag_local_refine"], stdout=subprocess.DEVNULL, stderr=True)
 
 
 # Method: make_refine_file()
@@ -1458,7 +1467,7 @@ def run_multi(args):
             os.mkdir("output_files/refine")
             print(pdb)
             # Run Flex auto
-            par_run = choose_par(args, ["python3", "TCRcoupler.py", pdb], True)
+            par_run = choose_par(args, ["TCRcoupler", pdb], True)
             print(par_run)
             subprocess.run(par_run)
             os.chdir(main_dir)
@@ -1508,7 +1517,6 @@ def choose_par(args, run_list, multi=False):
                      str(args.num_clusters), "-n", str(args.native)])
     if multi and args.native != "...":  # If submitting multiple docks with matching native files
         potential_pdb = run_list[2][:4] + ".pdb"
-        print(run_list)
         if potential_pdb in os.listdir(program_dir + "/" + run_list[-1]):
             run_list[-1] = program_dir + "/" + run_list[-1] + "/" + potential_pdb
         else:
@@ -1599,10 +1607,6 @@ def check_rmsd(native, step="dock"):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("pdb", help="PDB file or folder of PDBs for docking", type=str)
-    parser.add_argument("-l", "--linux", help="Changes to linux runnable program", default=True,
-                        dest='linux', action='store_true')
-    parser.add_argument("-m", "--mac", help="Changes to mac runnable program", default=False,
-                        dest='mac', action='store_true')
     parser.add_argument("-q", "--nompi", help="Run Rosetta without mpi, not recommended for large runs", default=False,
                         action="store_true")
     parser.add_argument("-r", "--rigid", help="Initializes flexible docking", default=True,
@@ -1650,19 +1654,12 @@ def main():
     # Initializing rosetta folder
     global rosetta_dir
     config_file = files("data").joinpath("config.ini")
-    print(config_file)
     with open(config_file, "r") as f1:  # Grab rosetta location
         for line in f1:
             if line[:11] == "rosetta_loc":
                 rosetta_dir = line[:-1].split("=")[1][1:-1]
-    print("Rosetta Dir:", rosetta_dir)
     if os.path.isfile(args.pdb):
         # Initialize version of Linux or Mac release
-        global version
-        if args.mac:
-            version = "macosclangrelease"
-        elif args.linux:
-            version = "linuxgccrelease"
         global no_mpi
         if args.nompi:
             no_mpi = True

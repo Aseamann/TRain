@@ -37,7 +37,6 @@ from importlib.resources import files
 import argparse
 import pandas
 from Bio import Align
-import os
 
 
 #################

@@ -52,7 +52,7 @@
 #                      rotation check)                               #
 ######################################################################
 
-from importlib.resources import files
+import importlib.resources as pkg_resources
 import argparse
 import subprocess
 import time
@@ -1653,11 +1653,13 @@ def main():
     args = parse_args()
     # Initializing rosetta folder
     global rosetta_dir
-    config_file = files("data").joinpath("config.ini")
+    with pkg_resources.path('data', 'config.ini') as p:
+        config_file = p
     with open(config_file, "r") as f1:  # Grab rosetta location
         for line in f1:
             if line[:11] == "rosetta_loc":
                 rosetta_dir = line[:-1].split("=")[1][1:-1]
+    print(rosetta_dir)
     if os.path.isfile(args.pdb):
         # Initialize version of Linux or Mac release
         global no_mpi

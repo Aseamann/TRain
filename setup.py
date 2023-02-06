@@ -11,10 +11,11 @@ setup(
     url="https://github.com/Aseamann/TRain",
     install_requires=[
         "pandas",
+        "numpy == 1.20.3",
         "openpyxl",
         "biopython == 1.79",
-        "scipy",
-        "scikit-learn",
+        "scipy == 1.9.3",
+        "scikit-learn == 1.2.0",
         "matplotlib",
         "seaborn"
     ],

@@ -33,7 +33,7 @@
 ######################################################################
 
 
-from importlib.resources import files
+import importlib.resources as pkg_resources
 import argparse
 import pandas
 from Bio import Align
@@ -417,7 +417,8 @@ def create_constant_dic(organism):
         dictionary of the constant regions for the organism selected
     """
     constant_dic = {}
-    constant_region_file = files("data").joinpath("constant_regions.fasta")
+    with pkg_resources('data', 'constant_regions.fasta') as p:
+        constant_region_file = p
     with open(constant_region_file, "r") as f:
         temp_imgt_id = ""
         flag = False  # Flag to know when to collect sequence information for dic
@@ -564,7 +565,8 @@ def main():
         global silent
         silent = True
     # create dictionary for program to pull gene family information from
-    gene_family_file = files("data").joinpath(args.genefamily)
+    with pkg_resources.path('data', args.genefamily) as p:
+        gene_family_file = p
     create_gene_dic(gene_family_file, args.organism)
     # create tcr dictionary containing each segment
     tcr_dic = get_tcr_info(args.single_cell_table, args.sheet, [int(i) for i in args.columns.split(",")])

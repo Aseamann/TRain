@@ -1,9 +1,0 @@
-[console_scripts]
-DataDepot = tr05analysis:main
-ModelEngine = tr02model:main
-PDB_Tools_V3 = util:main
-PostCoupler = tr04dock:post
-PrepCoupler = tr04dock:prep
-SeqConductor = tr01input:main
-TCRcoupler = tr04dock:main
-TurnTable = tr03pair:main

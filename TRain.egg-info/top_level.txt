@@ -1,7 +1,0 @@
-data
-tr01input
-tr02model
-tr03pair
-tr04dock
-tr05analysis
-util

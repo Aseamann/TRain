@@ -12,3 +12,5 @@ TRain.egg-info/SOURCES.txt
 TRain.egg-info/top_level.txt
 util/__pycache__/__init__.cpython-39.pyc
 util/__pycache__/PDB_Tools_V3.cpython-39.pyc
+tr02model/__pycache__/__init__.cpython-39.pyc
+*.pyc

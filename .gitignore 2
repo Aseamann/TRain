@@ -1,0 +1,14 @@
+
+TRain.egg-info/dependency_links.txt
+TRain.egg-info/entry_points.txt
+TRain.egg-info/PKG-INFO
+TRain.egg-info/requires.txt
+TRain.egg-info/SOURCES.txt
+TRain.egg-info/top_level.txt
+data/__pycache__/__init__.cpython-39.pyc
+tr04dock/__pycache__/__init__.cpython-39.pyc
+tr04dock/__pycache__/PostCoupler.cpython-39.pyc
+tr04dock/__pycache__/PrepCoupler.cpython-39.pyc
+tr04dock/__pycache__/TCRcoupler.cpython-39.pyc
+util/__pycache__/__init__.cpython-39.pyc
+util/__pycache__/PDB_Tools_V3.cpython-39.pyc

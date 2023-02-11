@@ -24,6 +24,7 @@
 ######################################################################
 
 
+import importlib.resources as pkg_resources
 import argparse
 import subprocess
 import os
@@ -93,7 +94,7 @@ def run_pars(pars, verbose, header):
     if verbose:
         subprocess.run(pars)
     else:
-        subprocess.run(pars, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(pars, stdout=subprocess.DEVNULL, stderr=True)
     print("Done: " + header)
 
 
@@ -136,7 +137,7 @@ def run_tcrmodel(tcr_seqs, rosetta_loc, refine, verbose, multi, cpu_count, cutof
                 if verbose:
                     subprocess.run(pars)
                 else:
-                    subprocess.run(pars, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    subprocess.run(pars, stdout=subprocess.DEVNULL, stderr=True)
             else:
                 f1 = executor.submit(run_pars, pars, verbose, header)
             count += 1  # Add to tmp count
@@ -175,7 +176,9 @@ def main():
     args = parse_args()
     # Grab Rosetta install location
     rosetta_dir = ""
-    with open("../config.ini", "r") as f1:
+    with pkg_resources.path('data', 'config.ini') as p:
+        config_file = p
+    with open(config_file, "r") as f1:
         for line in f1:
             if line[:11] == "rosetta_loc":
                 rosetta_dir = line[:-1].split("=")[1][1:-1]

@@ -417,7 +417,7 @@ def create_constant_dic(organism):
         dictionary of the constant regions for the organism selected
     """
     constant_dic = {}
-    with pkg_resources('data', 'constant_regions.fasta') as p:
+    with pkg_resources.path('data', 'constant_regions.fasta') as p:
         constant_region_file = p
     with open(constant_region_file, "r") as f:
         temp_imgt_id = ""

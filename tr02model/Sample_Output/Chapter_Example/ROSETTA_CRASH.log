@@ -1,0 +1,132 @@
+##############################################################################################################
+#
+# Rosetta crash log. Please submit the contents of this file to http://crash.rosettacommons.org/
+# or use the script Rosetta/main/source/scripts/python/public/report_crashes.py
+#
+
+[START_CRASH_REPORT]
+[ROSETTA_VERSION]: 2023.45+release.a6d9ba8
+[COMMIT_DATE]: 2023-11-07T23:58:11.511241
+[APPLICATION]: /Users/austinseamann/Rosetta/rosetta.source.release-362/main/source/bin/tcrmodel.macosclangrelease
+[MODE]: Release
+[EXTRAS]: default
+[OS]: Apple Mac OS X
+[COMPILER]: Clang version "15.0.0 (clang-1500.0.40.1)"
+[STDLIB]: libc++ version 160006
+[START_OPTIONS]
+ -out:prefix=tmp4_ -alpha=AQTVTQSQPEMSVQEAETVTLSCTYDTSESDYYLFWYKQPPSRQMILVIRQEAYKQQNATENRFSVNFQKAAKSFSLKISDSQLGDAAMYFCAYRRRGQKLLFARGTMLKVDLIQNPDPAVYQLRDSKSSDKSVCLFTDFDSQTNVSQSKDSDVYITDKTVLDMRSMDFKSNSAVAWSNKSDFACANAFNNSIIPEDTFFPSP -beta=DSGVTQTPKHLITATGQRVTLRCSPRSGDLSVYWYQQSLDQGLQFLIQYYNGEERAKGNILERFSAQQFPDLHSELNLSSLELGDSALYFCASSVNPLAGRDTQYFGPGTRLTVLEDLNKVFPPEVAVFEPSEAEISHTQKATLVCLATGFFPDHVELSWWVNGKEVHSGVSTDPQPLKEQPALNDSRYCLSSRLRVSATFWQNPRNHFRCQVQFYGLSENDEWTQDRAKPVTQIVSAEAWGRA
+
+[END_OPTIONS]
+
+[START_BACKTRACE]: RAW_LIBC
+0   libutility.dylib                    0x000000011cbd47be backtrace_string(int) + 78
+1   libutility.dylib                    0x000000011cbf62b4 utility::excn::Exception::Exception(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&) + 180
+2   libutility.dylib                    0x000000011cbd822c utility::UtilityExitException::UtilityExitException(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&) + 108
+3   libutility.dylib                    0x000000011cbd80e7 utility::exit(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&, int) + 55
+4   libprotocols.7.dylib                0x000000010d9d1cc4 protocols::tcr::TCRseqInfo::parse_tcrsegs(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>) + 1636
+5   libprotocols.7.dylib                0x000000010d9d0756 protocols::tcr::TCRseqInfo::TCRseqInfo(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&) + 486
+6   tcrmodel.default.macosclangrelease  0x0000000102ea58b3 main + 1059
+7   dyld                                0x00000002030213a6 start + 1942
+
+[END_BACKTRACE]
+
+[FILE]: src/protocols/tcr/TCRseqInfo.cc
+[LINE]: 112
+[START_MESSAGE]
+[ ERROR ] UtilityExitException
+ERROR: No RegEx match for TCR chain sequence : AQTVTQSQPEMSVQEAETVTLSCTYDTSESDYYLFWYKQPPSRQMILVIRQEAYKQQNATENRFSVNFQKAAKSFSLKISDSQLGDAAMYFCAYRRRGQKLLFARGTMLKVDLIQNPDPAVYQLRDSKSSDKSVCLFTDFDSQTNVSQSKDSDVYITDKTVLDMRSMDFKSNSAVAWSNKSDFACANAFNNSIIPEDTFFPSP
+
+
+
+[END_MESSAGE]
+[END_CRASH_REPORT]
+
+##############################################################################################################
+#
+# Rosetta crash log. Please submit the contents of this file to http://crash.rosettacommons.org/
+# or use the script Rosetta/main/source/scripts/python/public/report_crashes.py
+#
+
+[START_CRASH_REPORT]
+[ROSETTA_VERSION]: 2023.45+release.a6d9ba8
+[COMMIT_DATE]: 2023-11-07T23:58:11.511241
+[APPLICATION]: /Users/austinseamann/Rosetta/rosetta.source.release-362/main/source/bin/tcrmodel.macosclangrelease
+[MODE]: Release
+[EXTRAS]: default
+[OS]: Apple Mac OS X
+[COMPILER]: Clang version "15.0.0 (clang-1500.0.40.1)"
+[STDLIB]: libc++ version 160006
+[START_OPTIONS]
+ -out:prefix=tmp3_ -alpha=AQSVSQHNHHVILSEAASLELGCNYSYGGTVNLFWYVQYPGQHLQLLLKYFSGDPLVKGIKGFEAEFIKSKFSFNLRKPSVQWSDTAEYFCAGNNNARLTFGDGTQLVVKPIQNPDPAVYQLRDSKSSDKSVCLFTDFDSQTNVSQSKDSDVYITDKTVLDMRSMDFKSNSAVAWSNKSDFACANAFNNSIIPEDTFFPSP -beta=DTAVSQTPKYLVTQTGKKESLKEQNLGHNAMYWYKQDSKKFLKTMFIYSNKEPILNETVPNRFSPDSPDKVHLNLHINSLELGDSAVYFCASSQALTDYGYTFGSGTRLTVVEDLNKVFPPEVAVFEPSEAEISHTQKATLVCLATGFFPDHVELSWWVNGKEVHSGVSTDPQPLKEQPALNDSRYCLSSRLRVSATFWQNPRNHFRCQVQFYGLSENDEWTQDRAKPVTQIVSAEAWGRA
+
+[END_OPTIONS]
+
+[START_BACKTRACE]: RAW_LIBC
+0   libutility.dylib                    0x000000011e4d47be backtrace_string(int) + 78
+1   libutility.dylib                    0x000000011e4f62b4 utility::excn::Exception::Exception(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&) + 180
+2   libutility.dylib                    0x000000011e4d822c utility::UtilityExitException::UtilityExitException(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&) + 108
+3   libutility.dylib                    0x000000011e4d80e7 utility::exit(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&, int) + 55
+4   libprotocols.7.dylib                0x000000010f2dd20c protocols::tcr::assign_bchain_CDRs_using_REGEX(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&, protocols::tcr::TCRseqInfo::tcrsegs&, protocols::tcr::TCRseqInfo::tcrposi&) + 12380
+5   libprotocols.7.dylib                0x000000010f2d1728 protocols::tcr::TCRseqInfo::parse_tcrsegs(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>) + 200
+6   libprotocols.7.dylib                0x000000010f2d0756 protocols::tcr::TCRseqInfo::TCRseqInfo(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&) + 486
+7   tcrmodel.default.macosclangrelease  0x00000001047ff8b3 main + 1059
+8   dyld                                0x0000000204b473a6 start + 1942
+
+[END_BACKTRACE]
+
+[FILE]: src/protocols/tcr/util.cc
+[LINE]: 307
+[START_MESSAGE]
+[ ERROR ] UtilityExitException
+ERROR: No RegEx match for TCR chain sequence : DTAVSQTPKYLVTQTGKKESLKEQNLGHNAMYWYKQDSKKFLKTMFIYSNKEPILNETVPNRFSPDSPDKVHLNLHINSLELGDSAVYFCASSQALTDYGYTFGSGTRLTVVEDLNKVFPPEVAVFEPSEAEISHTQKATLVCLATGFFPDHVELSWWVNGKEVHSGVSTDPQPLKEQPALNDSRYCLSSRLRVSATFWQNPRNHFRCQVQFYGLSENDEWTQDRAKPVTQIVSAEAWGRA
+
+
+
+[END_MESSAGE]
+[END_CRASH_REPORT]
+
+##############################################################################################################
+#
+# Rosetta crash log. Please submit the contents of this file to http://crash.rosettacommons.org/
+# or use the script Rosetta/main/source/scripts/python/public/report_crashes.py
+#
+
+[START_CRASH_REPORT]
+[ROSETTA_VERSION]: 2023.45+release.a6d9ba8
+[COMMIT_DATE]: 2023-11-07T23:58:11.511241
+[APPLICATION]: /Users/austinseamann/Rosetta/rosetta.source.release-362/main/source/bin/tcrmodel.macosclangrelease
+[MODE]: Release
+[EXTRAS]: default
+[OS]: Apple Mac OS X
+[COMPILER]: Clang version "15.0.0 (clang-1500.0.40.1)"
+[STDLIB]: libc++ version 160006
+[START_OPTIONS]
+ -out:prefix=tmp9_ -alpha=EDQVTQSPEALRLQEGESSSLNCSYTVSGLRGLFWYRQDPGKGPEFLFTLYSAGEEKEKERLKATLTKKESFLHITAPKPEDSATYLCAGCRTGTASKLTFGTGTRLQVTLIQNPDPAVYQLRDSKSSDKSVCLFTDFDSQTNVSQSKDSDVYITDKTVLDMRSMDFKSNSAVAWSNKSDFACANAFNNSIIPEDTFFPSP -beta=GEEVAQTPKHLVRGEGQKAKLYCAPIKGHSVFWYQQVLKNEFKFLISFQNENVFDETGMPKERFSAKCLPNSPCSLEIQATKLEDSAVYFCASSQIGTDRGPAGGPLNEQYFGPGTRLTVTEDLNKVFPPEVAVFEPSEAEISHTQKATLVCLATGFFPDHVELSWWVNGKEVHSGVSTDPQPLKEQPALNDSRYCLSSRLRVSATFWQNPRNHFRCQVQFYGLSENDEWTQDRAKPVTQIVSAEAWGRA
+
+[END_OPTIONS]
+
+[START_BACKTRACE]: RAW_LIBC
+0   libutility.dylib                    0x0000000119dd47be backtrace_string(int) + 78
+1   libutility.dylib                    0x0000000119df62b4 utility::excn::Exception::Exception(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&) + 180
+2   libutility.dylib                    0x0000000119dd822c utility::UtilityExitException::UtilityExitException(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&) + 108
+3   libutility.dylib                    0x0000000119dd80e7 utility::exit(char const*, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&, int) + 55
+4   libprotocols.7.dylib                0x000000010abe7ee2 protocols::tcr::setup_cdr_template_from_db(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&, protocols::tcr::TCRmodel::tmpltinfo&, unsigned long, unsigned long, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&, std::__1::list<std::__1::set<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>, std::__1::less<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>>, std::__1::allocator<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>>>, std::__1::allocator<std::__1::set<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>, std::__1::less<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>>, std::__1::allocator<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>>>>> const&, double const&, std::__1::shared_ptr<core::sequence::ScoringScheme> const&) + 450
+5   libprotocols.7.dylib                0x000000010abe7f85 protocols::tcr::setup_cdr_template(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&, protocols::tcr::TCRmodel::tmpltinfo&, unsigned long, unsigned long, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&, std::__1::list<std::__1::set<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>, std::__1::less<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>>, std::__1::allocator<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>>>, std::__1::allocator<std::__1::set<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>, std::__1::less<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>>, std::__1::allocator<std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>>>>> const&, double const&, std::__1::shared_ptr<core::sequence::ScoringScheme> const&) + 53
+6   libprotocols.7.dylib                0x000000010abcb870 protocols::tcr::TCRmodel::setup_templates() + 9584
+7   libprotocols.7.dylib                0x000000010abc6004 protocols::tcr::TCRmodel::TCRmodel(std::__1::shared_ptr<protocols::tcr::TCRseqInfo>) + 1140
+8   tcrmodel.default.macosclangrelease  0x000000010007a90a main + 1146
+9   dyld                                0x00000002001033a6 start + 1942
+
+[END_BACKTRACE]
+
+[FILE]: src/protocols/tcr/template_util.cc
+[LINE]: 263
+[START_MESSAGE]
+[ ERROR ] UtilityExitException
+ERROR: No Template found for TCR sequence
+
+
+
+[END_MESSAGE]
+[END_CRASH_REPORT]
+

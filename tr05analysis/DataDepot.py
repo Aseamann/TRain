@@ -918,7 +918,7 @@ def main():
         if args.verbose:
             global verbose
             verbose = True
-        rosetta_binary("InterfaceAnalyzer.")  # Set binary
+        rosetta_binary("InterfaceAnalyzer")  # Set binary
         # Set TCR chains based on user input
         tcr_chains = {"MHC": "A", "peptide": "C",
                       "ALPHA": "D", "BETA": "E"}

@@ -1,6 +1,6 @@
 -in:file:s ES179M1-01_5isz.pdb
 
-#SBATCH --ntasks=8
+#SBATCH --ntasks=10
 -nstruct 10 
 
 #-relax:constrain_relax_to_start_coords

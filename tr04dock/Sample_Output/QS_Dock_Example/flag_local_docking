@@ -1,7 +1,7 @@
--in:file:s output_files/relax/ES179M1-01_5isz_0010.pdb
--unboundrot output_files/relax/ES179M1-01_5isz_0010.pdb
+-in:file:s output_files/relax/ES179M1-01_5isz_0002.pdb
+-unboundrot output_files/relax/ES179M1-01_5isz_0002.pdb
 
-#SBATCH --ntasks=8
+#SBATCH --ntasks=10
 -nstruct 100 
 
 -partners AC_DE

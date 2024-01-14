@@ -51,7 +51,10 @@ def align_chains(tcr_file, pmhc_file, final_name):
         name of resulting paired TCRpMHC file
     """
     reference_pdb = os.path.join(os.path.dirname(__file__), "reference.pdb")
-    tool.set_file_name(reference_pdb)
+    try:
+        tool.set_file_name(reference_pdb)
+    except:
+        print("Missing reference pdb - backup file in /TRain/data/")
     tool.superimpose(tcr_file, "DE", "DE", "reference_tmp.pdb")
     tool.set_file_name(pmhc_file)
     tool.superimpose("reference_tmp.pdb", "A", "A", pmhc_file)
@@ -115,10 +118,16 @@ def tcr_pmhc_pair(tcr_dir, pmhc_dir, tcr_multi, pmhc_multi, trim_a, trim_b, trim
                 tool.reorder_chains(["A", "B"])
             tool.update_label({'A': 'D', 'B': 'E'})
             tool.renumber_docking()
-        if not trim_a:  # Trimming of alpha chain
+        if trim_a:  # Trimming of alpha chain
             tool.trim_chain("D", 107)  # Trim Alpha at 107
-        if not trim_b:  # Trimming of beta chain
+        else:
+            if len(tool.get_amino_acid_on_chain("D")) >= 120:
+                print("Trim A flag not called, suggested for this structure")
+        if trim_b:  # Trimming of beta chain
             tool.trim_chain("E", 113)  # Trim Beta at 113
+        else:
+            if len(tool.get_amino_acid_on_chain("E")) >= 120:
+                print("Trim B flag not called, suggested for this structure")
         tool.center(tmp_tcr)
         for pmhc_location in locations["pMHC"]:
             if len(locations["pMHC"]) <= 1:

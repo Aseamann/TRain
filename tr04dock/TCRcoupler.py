@@ -251,8 +251,11 @@ def run_rigid(pdb, run_info, native):
     print("Running refine...")
     run_refine(pdb_refine + ".pdb", run_info["refine"], run_info["cpu_refine"], native)  # In flexible section
     end_refine = (time.time() - start_refine) / 60.0
+    # Copy refined structure to output_files
+    best_refine = check_score_refine()
+    copyfile("output_files/refine/" + best_refine + ".pdb", "output_files/" + best_refine + ".pdb")
     if run_info["clear_pdbs"]:
-        remove_refine(check_score_refine())  # In flexible section
+        remove_refine(best_refine)  # In flexible section
     print("Refine Complete")
     with open("time.txt", "w") as file:
         if end_relax != 0:
@@ -461,6 +464,8 @@ def run_flexible(pdb, run_info, native):
         remove_dock(pdb_refine)
     run_refine(pdb_refine + ".pdb", run_info["refine"], run_info["cpu_refine"], native)
     best_refine = check_score_refine()
+    # Copy refined structure to output_files
+    copyfile("output_files/refine/" + best_refine + ".pdb", "output_files/" + best_refine + ".pdb")
     if native != "...":
         check_rmsd(native, "refine")
     if run_info["clear_pdbs"]:
@@ -1039,7 +1044,7 @@ def pairwise_rmsd(directory, passed):
     plt.cla()
     plt.close()
     plt.figure(figsize=(15, 10))
-    sns.scatterplot(x=range(0, 200), y=pairwise_matrix[0], palette="tab10", s=46)
+    sns.scatterplot(x=range(0, len(pairwise_matrix[0])), y=pairwise_matrix[0], palette="tab10", s=46)
     plt.ylabel("RMSD from Top Pose")
     plt.xlabel("Top Scoring Poses\n(Top Pose to Pose 200)")
     plt.title("RMSD from Top Scoring Pose")
@@ -1078,6 +1083,7 @@ def compute_aff_matrix(rmsds_tsne, nn=8):
 
     # Compute the sigma matrix
     sigma_mat = np.matrix(sigmas)
+    # sigma_mat = np.asarray(sigmas)
     sigma_mat = np.matmul(np.transpose(sigma_mat), sigma_mat)
 
     # Build the kernel function
@@ -1304,7 +1310,7 @@ def cluster_mds(rmsd_matrix, passed, ordered, num_clusters):
     Parameters
     __________
     rmsd_matrix : dict
-        dictionary results from pairwise_rmsd method of top 200 structures
+        dictionary results from pairwise_rmsd method of top x structures
     passed : list
         list of 200 pdb ids in order of score
     ordered : dict
@@ -1332,20 +1338,21 @@ def cluster_mds(rmsd_matrix, passed, ordered, num_clusters):
     plt.close()
     plt.figure(figsize=(15,10))
     sns.scatterplot(x=x_transformed[:, 0], y=x_transformed[:, 1], hue=labels, palette="tab10", s=46)
-    plt.title("Pairwise RMSD Comparison of Top 200\nAfter reduction of rmsd distance matrix with MDS and Clustered with Spectral Clustering")
+    len_passed = len(rmsd_matrix[0])
+    plt.title("Pairwise RMSD Comparison of Top " + str(len_passed) + "\nAfter reduction of rmsd distance matrix with MDS and Clustered with Spectral Clustering")
     plt.savefig("rmsd_mds_spectral.png", format="png")
 
     # Report top alternative pdbs
     # Pull them into a separate directory
-    t_dir = "top200"
+    t_dir = "top"
     if os.path.exists(t_dir):
         shutil.rmtree(t_dir)
     os.mkdir(t_dir)
     for pdb in passed:
-        shutil.copy("output_files/dock/" + pdb + ".pdb", "top200")
-    with open("top200/top200.csv", "w") as f:
+        shutil.copy("output_files/dock/" + pdb + ".pdb", "top")
+    with open("top/top.csv", "w") as f:
         f.write("PDB\tCluster\n")
-        for i in range(len(passed)):
+        for i in range(len(rmsd_matrix[0])):
             f.write(passed[i] + "\t" + str(labels[i]) + "\t" + str(ordered[passed[i]]) + "\n")
             # Save best I_sc per cluster
             if labels[i] in alternative_pdbs.keys():
@@ -1628,15 +1635,16 @@ def parse_args():
     parser.add_argument("-n", "--native", help="Native structure file or folder to run optional comparison to crystal" \
                                                "structure; if folder, first 4 characters must match", type=str,
                                                default="...")
-    parser.add_argument("-t", "--rotation_check", help="(Don't perform) Check docking permutations to ensure alpha" \
-                                                       "chain is over the N-terminus vs. the C-terminus",
+    parser.add_argument("-t", "--rotation_check", help="(Select to not perform) Check docking permutations to " \
+                                                       "ensure alpha chain is over the N-terminus vs. the C-terminus",
                         default=False, action='store_true')
     parser.add_argument("-u", "--num_clusters",
                         help="Desired number of clusters (Default: 0, which uses an automatic estimate with the " \
                              "eigengap approach)", default=0)
     parser.add_argument("-w", "--cluster",
-                        help="(Don't perform) Pairwise spectral cluster top 200 I_sc's after docking permutations, " \
-                             "suggested for runs with >1000 docking runs", default=False, action='store_true')
+                        help="(Select to not perform) Pairwise spectral cluster top x structures I_sc's after " \
+                             "docking permutations,suggested for runs with >1000 docking runs", default=False,
+                             action='store_true')
     parser.add_argument("-R", "--rerun_refine", help="Rerun from refine, helps if needing to adjust number of clusters",
                         default=False, action='store_true')
     parser.add_argument("-C", "--clear_pdbs", help="Remove PDB files to reduce storage demand after runs. "\

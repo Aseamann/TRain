@@ -1,4 +1,4 @@
-## TRain
+# TRain
 TRain: T-cell Receptor automated immunoinformatics v0.1 -- xx/xx/2022
 Copyright (c) 2022 Austin Seamann.
 
@@ -11,13 +11,19 @@ If you use this program, please cite the paper.
 
 --------------------------------------------------------------------------------
 
-# User Guide
+## Visual Guide
+
+![Flowchart of the programs of TRain](/images/Figure3_TRain_Full_6x.png)
+
+--------------------------------------------------------------------------------
+
+## User Guide
 
 The User's Guide can be found in the Repo. as TRain\_User\_Guide.pdf
 
 --------------------------------------------------------------------------------
 
-# Installation
+## Installation
 The code for  **TRain**  is available through GitHub at: https://github.com/Aseamann/TRain. Download  
 or clone the latest version to your location of choice.
 
@@ -82,7 +88,7 @@ in line 2 inside the quotation marks.
 Each step of this Quick Start guide contains output files, so you can compare what you obtain  
 and make sure each step runs correctly.
 
-# Input
+## Input
 For all the steps, we assume that your working directory is "/TRain". The first step is to construct a full TCR protein sequence using the gene segments and CDR3 regions listed.
 
     cd tr01input
@@ -90,7 +96,7 @@ For all the steps, we assume that your working directory is "/TRain". The first 
     SeqConductor Sample_Input/Test_Table_Single.xlsx -f -a
  The files *alpha.fasta* and *beta.fasta* should appear in your working directory. The contents should be identical to the fasta files location in "tr01input/Sample_Output/Quick_Start/" and "tr01input/Sample_Input/Quick_Start/".
 
-# Model
+## Model
 Now we can submit our fasta files for modeling. For this step we will need a working installation of Rosetta.
 
     cd ../tr02model
@@ -100,7 +106,7 @@ The resulting model will be under the directory “Modeled”. You can open this
 PDB file viewer of choice. Only the variable region of the TCR will be modeled. It should match the  
 model found in "tr02model/Sample_Output/Quick_Start/" and "tr03pair/Sample_Input/Quick_Start/".
 
-# Pair
+## Pair
 The TCR we chose binds to the  Influenza  M1 antigen. Therefore, we will pair it with an M1 antigen  
 and MHC from PDB model  *5ISZ*. This step will prepare the two structures for the subsequent  
 docking step.
@@ -109,7 +115,7 @@ docking step.
     TurnTable -t Sample_Input/Quick_Start/ES179M1-01.pdb -p Sample_Input/5isz.pdb
 The paired TCR and pMHC will now be in the PDB file under the new directory "Paired". The new name of the PDB will start with the TCR name and then the pMHC name.
 
-# Dock
+## Dock
 For this Quick Start guide, we will perform a very short docking run to ensure that everything is working properly. There are two sample runs listed so you can determine if the MPI binaries are working on your system, or else you can use Rosetta without MPI. These examples are not recommended for actual biological interpretation of the interaction, as they are very short. To ensure you're utilizing **TRain** properly, visit chapter 6. 
 
 We will begin by creating a new directory to carry out docking. This is done so our output can be organized, as several sub-directories will be created for each docking step.
@@ -133,7 +139,7 @@ Your input to PostCoupler.py will be unique, so please follow the instructions b
     cd ../
     PostCoupler QS_Dock/output_files/refine/ES<tab> -c ACDE -r Sample_input/Quick_Start/5isz.pdb
 
-# Analysis
+## Analysis
 To conduct an analysis of a single docked TCRpMHC complex, we will begin with both the Rosetta Energy Breakdown Table and Heatmap. Energy Breakdown will provide us a summary of which amino acids are interacting between the TCR and the pMHC.
 
     cd ../tr05analysis

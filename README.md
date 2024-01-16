@@ -19,7 +19,7 @@ If you use this program, please cite the paper.
 
 ## User Guide
 
-The User's Guide can be found in the Repo. as TRain\_User\_Guide.pdf
+The User's Guide can be found in this GitHub repository as TRain\_User\_Guide.pdf
 
 --------------------------------------------------------------------------------
 

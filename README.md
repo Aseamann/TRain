@@ -49,7 +49,7 @@ be found at https://new.rosettacommons.org/docs/latest/getting_started/Getting-S
 should be built with MPI executables and instructions can be found at  
 https://new.rosettacommons.org/docs/latest/build_documentation/Build-Documentation (or follow  
 the instructions below). While there is the option to run without MPI, it is not recommend. For more  
-instructions on how to run  ModelEngine  and for a list of command line options, see chapter 5.  
+instructions on how to run  ModelEngine  and for a list of command line options, see Chapter 5 in the User's Guide.  
 
 If MPI is not installed on your computer, you can install it using the following command (for a  
 system with an apt installer):

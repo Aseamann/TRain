@@ -3,7 +3,7 @@
 ######################################################################
 # PDB_Tools_V3.py -- A component of TRain                            #
 # Copyright: Austin Seamann, Dario Ghersi, and Ryan Ehrlich          #
-# Version: 0.1                                                       #
+# Version: 1.0                                                       #
 # Last Updated: June 26th, 2022                                      #
 # Goal: Be a tool that is resourceful for working with PDB files in  #
 #       general and for the specific use of T-cell Receptor          #

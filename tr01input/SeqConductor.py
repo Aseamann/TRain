@@ -3,7 +3,7 @@
 ######################################################################
 # SeqConductor.py -- A component of TRain                            #
 # Copyright: Austin Seamann & Dario Ghersi                           #
-# Version: 0.1                                                       #
+# Version: 1.0                                                       #
 # Last Updated: April 27th, 2022                                     #
 # Goal: Take in gene segments and CDR3 regions of TCR chains and     #
 #        produce full amino acid sequences                           #

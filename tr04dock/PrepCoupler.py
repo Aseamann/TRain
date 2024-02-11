@@ -3,7 +3,7 @@
 ######################################################################
 # PrepCoupler.py -- A component of TRain                             #
 # Copyright: Austin Seamann & Dario Ghersi                           #
-# Version: 0.1                                                       #
+# Version: 1.0                                                       #
 # Last Updated: January 12th, 2022                                   #
 # Goal: Prepare TCRpMHC file for RosettaDock4.0 and TCRcoupler.py.   #
 #       Renumber and relabel chains, center TCR, and separate        #

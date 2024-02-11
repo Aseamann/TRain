@@ -3,8 +3,8 @@
 ######################################################################
 # TurnTable.py -- A component of TRain                               #
 # Copyright: Austin Seamann & Dario Ghersi                           #
-# Version: 0.1                                                       #
-# Last Updated: January 12th, 2022                                   #
+# Version: 1.0                                                       #
+# Last Updated: January 12th, 2024                                   #
 # Goal: Turn table takes the input of modeled or crystal structure   #
 #       PDBs to construct of PDB with a TCR paired with a pMHC in a  #
 #       specified manor for RosettaDock4.0                           #

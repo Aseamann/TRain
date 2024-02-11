@@ -3,7 +3,7 @@
 ######################################################################
 # ModelEngine.py -- A component of TRain                             #
 # Copyright: Austin Seamann & Dario Ghersi                           #
-# Version: 0.1                                                       #
+# Version: 1.0                                                       #
 # Last Updated: March 4th, 2022                                      #
 # Goal: Submit TCR alpha and beta chain sequences to local install   #
 #       of TCRmodel included in Rosetta Suite of Programs            #

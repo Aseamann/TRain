@@ -3,8 +3,8 @@
 ######################################################################
 # DataDepot.py -- A component of TRain                               #
 # Copyright: Austin Seamann & Dario Ghersi                           #
-# Version: 0.1                                                       #
-# Last Updated: April 3rd, 2022                                      #
+# Version: 1.0                                                       #
+# Last Updated: January 14th, 2024                                   #
 # Goal: Perform analysis of TCR PDB files and data from docking      #
 #                                                                    #
 # Named arguments: -a --ab ((AB usage) Submit PDB for ab_usage       #

@@ -3,8 +3,8 @@
 ######################################################################
 # TCRcoupler.py -- A component of TRain                              #
 # Copyright: Austin Seamann & Dario Ghersi                           #
-# Version: 0.1                                                       #
-# Last Updated: February 8th, 2023                                   #
+# Version: 1.0                                                       #
+# Last Updated: January 14th, 2024                                   #
 # Goal: Automation for Rosetta Scripts for RosettaDock 3.2 & 4.0     #
 #       specific for TCR structures with proper labeling.            #
 #                                                                    #

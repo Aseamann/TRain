@@ -1,5 +1,5 @@
 # TRain
-TRain: T-cell Receptor automated immunoinformatics v0.1
+TRain: T-cell Receptor automated immunoinformatics v1.0
 Copyright (c) 2024 Austin Seamann.
 
 Thank you for your interest in TRain. For more information, visit the

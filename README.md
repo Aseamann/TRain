@@ -48,7 +48,7 @@ visit https://www.rosettacommons.org/software/license-and-download. Installation
 be found at https://new.rosettacommons.org/docs/latest/getting_started/Getting-Started. Rosetta  
 should be built with MPI executables and instructions can be found at  
 https://new.rosettacommons.org/docs/latest/build_documentation/Build-Documentation (or follow  
-the instructions below). While there is the option to run without MPI, it is not recommend. For more  
+the instructions below). While there is the option to run without MPI, it is not recommended. For more  
 instructions on how to run  ModelEngine  and for a list of command line options, see Chapter 5 in the User's Guide.  
 
 If MPI is not installed on your computer, you can install it using the following command (for a  

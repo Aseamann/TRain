@@ -5,8 +5,8 @@ from setuptools import setup, find_packages
 
 setup(
     name="TRain",
-    version="0.1.0",
-    description="TRain is a tool that...",
+    version="1.0.0",
+    description="TRain is a tool that allows users to prepare TCR docking data and perform docking.",
     author="Austin Seamann",
     author_email="aseamann@unomaha.edu",
     url="https://github.com/Aseamann/TRain",

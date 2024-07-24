@@ -43,6 +43,8 @@ Using git command line:
     open data/config.ini
     # Build python package
     python -m pip install -e .
+    # Activate the conda environment - needed everytime TRain is in use
+    conda activate TRain
 For modeling and docking, a local version of Rosetta needs to be installed. For licensing details  
 visit https://www.rosettacommons.org/software/license-and-download. Installation instructions can  
 be found at https://new.rosettacommons.org/docs/latest/getting_started/Getting-Started. Rosetta  

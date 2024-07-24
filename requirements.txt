@@ -1,10 +1,11 @@
 ## Python packages required for TRain ##
 ## Breakdown of usage provided in manual ##
-pandas == 1.4.4 
-openpyxl
+pillow == 8.2.0
+pandas == 1.4.4
+openpyxl == 3.1.2
 biopython == 1.79
-scipy
-scikit-learn
-matplotlib
-seaborn
-bio == 1.5.0 
+scipy == 1.7.2
+scikit-learn == 1.0.1
+matplotlib == 3.7.4
+seaborn == 0.13.1
+bio == 1.5.0

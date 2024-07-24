@@ -11,14 +11,16 @@ setup(
     author_email="aseamann@unomaha.edu",
     url="https://github.com/Aseamann/TRain",
     install_requires=[
-        "pandas",
+        "pillow == 8.2.0"
+        "pandas == 1.4.4",
         "numpy == 1.20.1",
-        "openpyxl",
+        "openpyxl == 3.1.2",
         "biopython == 1.79",
         "scipy == 1.7.2",
         "scikit-learn == 1.0.1",
-        "matplotlib",
-        "seaborn"
+        "matplotlib == 3.7.4",
+        "seaborn == 0.13.1",
+        "bio == 1.5.0"
     ],
     packages=find_packages(),
     entry_points={

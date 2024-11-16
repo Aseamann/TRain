@@ -11,6 +11,7 @@ MANIFEST
 __pycache__/
 **/__pycache__/
 *.pyc
+data/config.ini
 TRain.egg-info/dependency_links.txt
 TRain.egg-info/entry_points.txt
 TRain.egg-info/PKG-INFO

@@ -85,7 +85,9 @@ Please read below for general build options of Rosetta for Linux and MacOS syste
 
 The configuration file for  TCRcoupler  is inside directory  /TRain/data/config.ini. Modify the  
 configuration file with your preferred text editor specifying the location of Rosetta installation folder  
-in line 2 inside the quotation marks.  
+in line 2 inside the quotation marks.
+
+TCRmodel2 can be used alternatively to TCRmodel. However, TCRmodel2 is not included in Rosetta, so an additional installation is necessary. To install TCRmodel2, please visit the GitHub repository https://github.com/piercelab/tcrmodel2. Installation can either be through the singularity installation process or the full installation process (distinguished by using the "-sing" command with ModelEngine). If intending to model unbound TCR chains, utilize the modified .def files found in /TRain/util. Update /TRain/data/config.ini with the paths to TCRmodel2, necessary AlphaFold databases, and if required the singularity .sif files.
 
 Each step of this Quick Start guide contains output files, so you can compare what you obtain  
 and make sure each step runs correctly.
@@ -104,6 +106,9 @@ Now we can submit our fasta files for modeling. For this step we will need a wor
     cd ../tr02model
     ls
     ModelEngine -a Sample_Input/Quick_Start/alpha_single.fasta -b Sample_Input/Quick_Start/beta_single.fasta
+    
+    # alternative of tcrmodel2 - config must contain paths
+    ModelEngine -a Sample_Input/Quick_Start/tcrmodel2/alpha_single.fasta -b Sample_Input/Quick_Start/tcrmodel2/beta_single.fasta --tcrmodel2 -sing
 The resulting model will be under the directory “Modeled”. You can open this PDB file with your  
 PDB file viewer of choice. Only the variable region of the TCR will be modeled. It should match the  
 model found in "tr02model/Sample_Output/Quick_Start/" and "tr03pair/Sample_Input/Quick_Start/".
